@@ -260,6 +260,9 @@
         <option value="Cartão">Cartão</option>
       </select>
 
+      <label>WhatsApp da pessoa (opcional)</label>
+      <input type="text" id="fWhats" class="mono" placeholder="Ex: 27 99999-9999" inputmode="tel" />
+
       <div class="price-row">
         <div class="lbl">Valor do ingresso</div>
         <div class="val" id="precoAtual">R$ 0</div>
@@ -341,7 +344,8 @@
         <!-- preenchido via JS -->
       </div>
     </div>
-    <button class="btn" id="btnCompartilhar" style="margin-top:16px;">Enviar para a pessoa (WhatsApp / imagem)</button>
+    <button class="btn" id="btnWhatsapp" style="margin-top:16px;">Enviar direto pelo WhatsApp da pessoa</button>
+    <button class="btn secondary" id="btnCompartilhar" style="margin-top:10px;">Enviar (escolher app / WhatsApp)</button>
     <button class="btn secondary" id="btnBaixar" style="margin-top:10px;">Baixar imagem do ingresso</button>
     <button class="btn secondary" id="btnImprimir" style="margin-top:10px;">Imprimir / salvar como PDF</button>
     <p id="shareHint" style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px;"></p>
@@ -468,16 +472,18 @@ async function gerarIngresso(){
   const nome = document.getElementById('fNome').value.trim();
   if(!nome){ alert('Digite o nome do comprador.'); return; }
   const pagamento = document.getElementById('fPagamento').value;
+  const whatsapp = document.getElementById('fWhats').value.trim();
   const id = nextTicketNumber(selCat);
   const preco = config.precos[selCat][selLote];
   const ticket = {
-    id, nome, cat:selCat, lote:selLote, preco, pagamento,
+    id, nome, cat:selCat, lote:selLote, preco, pagamento, whatsapp,
     dataVenda: new Date().toISOString(),
     checkedIn:false, checkinTime:null
   };
   tickets.unshift(ticket);
   await saveTickets();
   document.getElementById('fNome').value = '';
+  document.getElementById('fWhats').value = '';
   showTicketModal(ticket);
   renderAll();
 }
@@ -498,6 +504,14 @@ function showTicketModal(t){
   document.getElementById('modalTicket').classList.remove('hidden');
   window.currentTicket = t;
   document.getElementById('shareHint').textContent = '';
+  const btnW = document.getElementById('btnWhatsapp');
+  btnW.style.display = t.whatsapp ? 'block' : 'none';
+}
+
+function normalizarWhats(numero){
+  let d = numero.replace(/\D/g,'');
+  if(d.length <= 11) d = '55' + d; // adiciona código do Brasil se não tiver
+  return d;
 }
 
 function ticketFileName(t){
@@ -565,7 +579,7 @@ function renderLista(){
         <div class="row1">
           <div>
             <div class="name">${t.nome}</div>
-            <div class="meta">${LOTES[t.lote]} · ${t.pagamento || 'pagamento não informado'}</div>
+            <div class="meta">${LOTES[t.lote]} · ${t.pagamento || 'pagamento não informado'}${t.whatsapp ? ' · 📱 ' + t.whatsapp : ''}</div>
           </div>
           <div class="tag">${CATS[t.cat].label}</div>
         </div>
@@ -697,6 +711,30 @@ document.getElementById('btnSalvarPrecos').addEventListener('click', async ()=>{
 });
 
 document.getElementById('fecharModal').addEventListener('click', ()=>document.getElementById('modalTicket').classList.add('hidden'));
+async function enviarPeloWhatsapp(){
+  const t = window.currentTicket;
+  if(!t || !t.whatsapp) return;
+  const hint = document.getElementById('shareHint');
+
+  // baixa a imagem do ingresso primeiro, pra ela ficar pronta pra anexar
+  const canvas = await renderTicketCanvas();
+  const link = document.createElement('a');
+  link.download = ticketFileName(t);
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+
+  const numero = normalizarWhats(t.whatsapp);
+  const msg = encodeURIComponent(
+    `Oi, ${t.nome}! Aqui está seu ingresso para ${config.eventName} 🎟️\n` +
+    `Categoria: ${CATS[t.cat].label} — ${LOTES[t.lote]}\n` +
+    `Código: ${t.id}\n\n` +
+    `Anexe a imagem do ingresso que acabou de baixar aqui na conversa. Apresente o QR code na entrada!`
+  );
+  window.open(`https://wa.me/${numero}?text=${msg}`, '_blank');
+  hint.textContent = 'Imagem baixada e WhatsApp aberto — agora é só anexar a imagem na conversa.';
+}
+
+document.getElementById('btnWhatsapp').addEventListener('click', enviarPeloWhatsapp);
 document.getElementById('btnImprimir').addEventListener('click', ()=>window.print());
 document.getElementById('btnBaixar').addEventListener('click', baixarTicket);
 document.getElementById('btnCompartilhar').addEventListener('click', compartilharTicket);
