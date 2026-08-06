@@ -156,6 +156,7 @@
   .stub .status{ font-size:11px; padding:2px 8px; border-radius:20px; }
   .status.entrou{ background:#173a1f; color:#6fcf7f; }
   .status.pendente{ background:var(--surface-2); color:var(--muted); }
+  .status.cortesia{ background:#173a1f; color:#6fcf7f; }
 
   .search{ margin-bottom:14px; }
   .filters{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
@@ -263,6 +264,11 @@
       <label>WhatsApp da pessoa (opcional)</label>
       <input type="text" id="fWhats" class="mono" placeholder="Ex: 27 99999-9999" inputmode="tel" />
 
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="fCortesia" style="width:auto; accent-color:var(--gold);" />
+        <span>Ingresso de cortesia (sem cobrança)</span>
+      </label>
+
       <div class="price-row">
         <div class="lbl">Valor do ingresso</div>
         <div class="val" id="precoAtual">R$ 0</div>
@@ -288,6 +294,7 @@
       <button data-f="solteira">Solteira</button>
       <button data-f="pendente">Não entrou</button>
       <button data-f="entrou">Já entrou</button>
+      <button data-f="cortesia">Cortesias</button>
     </div>
     <div id="listaIngressos"></div>
   </section>
@@ -507,8 +514,16 @@ function nextTicketNumber(cat){
 }
 
 function updatePrecoAtual(){
+  const cortesia = document.getElementById('fCortesia').checked;
   const p = config.precos[selCat][selLote];
-  document.getElementById('precoAtual').textContent = fmtBRL(p);
+  const el = document.getElementById('precoAtual');
+  if(cortesia){
+    el.textContent = 'Cortesia';
+    el.style.color = '#6fcf7f';
+  }else{
+    el.textContent = fmtBRL(p);
+    el.style.color = '';
+  }
 }
 
 // ---------- render: seg controls ----------
@@ -544,10 +559,11 @@ async function gerarIngresso(){
   if(!nome){ alert('Digite o nome do comprador.'); return; }
   const pagamento = document.getElementById('fPagamento').value;
   const whatsapp = document.getElementById('fWhats').value.trim();
+  const cortesia = document.getElementById('fCortesia').checked;
   const id = nextTicketNumber(selCat);
-  const preco = config.precos[selCat][selLote];
+  const preco = cortesia ? 0 : config.precos[selCat][selLote];
   const ticket = {
-    id, nome, cat:selCat, lote:selLote, preco, pagamento, whatsapp,
+    id, nome, cat:selCat, lote:selLote, preco, pagamento, whatsapp, cortesia,
     dataVenda: new Date().toISOString(),
     checkedIn:false, checkinTime:null
   };
@@ -555,6 +571,8 @@ async function gerarIngresso(){
   await saveTickets();
   document.getElementById('fNome').value = '';
   document.getElementById('fWhats').value = '';
+  document.getElementById('fCortesia').checked = false;
+  updatePrecoAtual();
   showTicketModal(ticket);
   renderAll();
 }
@@ -569,7 +587,7 @@ function showTicketModal(t){
     <div class="qrbox" id="qrRender"></div>
     <div class="idline">${t.id}</div>
     <div class="perfline"></div>
-    <div class="pricebig">${fmtBRL(t.preco)}</div>
+    <div class="pricebig">${t.cortesia ? '🎁 Ingresso de Cortesia' : fmtBRL(t.preco)}</div>
   `;
   gerarQRCode(document.getElementById('qrRender'), t.id);
   document.getElementById('modalTicket').classList.remove('hidden');
@@ -635,6 +653,7 @@ function renderLista(){
   let filtrados = tickets.filter(t=>{
     if(filtroAtual==='pendente' && t.checkedIn) return false;
     if(filtroAtual==='entrou' && !t.checkedIn) return false;
+    if(filtroAtual==='cortesia' && !t.cortesia) return false;
     if(['solteiro','casal','solteira'].includes(filtroAtual) && t.cat !== filtroAtual) return false;
     if(busca && !(t.nome.toLowerCase().includes(busca) || t.id.toLowerCase().includes(busca))) return false;
     return true;
@@ -656,7 +675,7 @@ function renderLista(){
         </div>
         <div class="foot">
           <div class="id mono">${t.id}</div>
-          <div class="price">${fmtBRL(t.preco)}</div>
+          <div class="price">${t.cortesia ? '🎁 Cortesia' : fmtBRL(t.preco)}</div>
           <div class="status ${t.checkedIn?'entrou':'pendente'}">${t.checkedIn?'Entrou':'Pendente'}</div>
         </div>
       </div>
@@ -676,12 +695,14 @@ function renderResumo(){
   const totalIngressos = tickets.length;
   const totalReceita = tickets.reduce((s,t)=>s+t.preco,0);
   const totalEntraram = tickets.filter(t=>t.checkedIn).length;
+  const totalCortesias = tickets.filter(t=>t.cortesia).length;
 
   document.getElementById('statGrid').innerHTML = `
     <div class="stat"><div class="n">${totalIngressos}</div><div class="l">ingressos vendidos</div></div>
     <div class="stat"><div class="n">${fmtBRL(totalReceita)}</div><div class="l">receita total</div></div>
     <div class="stat"><div class="n">${totalEntraram}</div><div class="l">já entraram</div></div>
     <div class="stat"><div class="n">${totalIngressos-totalEntraram}</div><div class="l">ainda não entraram</div></div>
+    <div class="stat"><div class="n">${totalCortesias}</div><div class="l">🎁 cortesias distribuídas</div></div>
   `;
 
   let html = '<tr><th>Categoria</th><th>Lote</th><th>Qtd</th><th>Total</th></tr>';
@@ -896,6 +917,7 @@ document.getElementById('loteSeg').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   selLote = b.dataset.lote; renderSegs();
 });
+document.getElementById('fCortesia').addEventListener('change', updatePrecoAtual);
 document.getElementById('btnGerar').addEventListener('click', gerarIngresso);
 document.getElementById('btnEditarPrecos').addEventListener('click', abrirModalPrecos);
 document.getElementById('fecharModalPrecos').addEventListener('click', ()=>document.getElementById('modalPrecos').classList.add('hidden'));
