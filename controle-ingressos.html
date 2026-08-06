@@ -75,12 +75,12 @@
     z-index:50;
   }
   .tabbar button{
-    flex:1; padding:13px 4px 10px; background:none; border:none;
-    color:var(--muted); font-family:'Work Sans',sans-serif; font-size:12px;
-    display:flex; flex-direction:column; align-items:center; gap:4px;
+    flex:1; padding:11px 2px 9px; background:none; border:none;
+    color:var(--muted); font-family:'Work Sans',sans-serif; font-size:10.5px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
     cursor:pointer;
   }
-  .tabbar button .ic{ font-size:18px; }
+  .tabbar button .ic{ font-size:16px; }
   .tabbar button.active{ color:var(--gold); }
 
   .view{ display:none; }
@@ -306,6 +306,49 @@
     </div>
   </section>
 
+  <!-- CASA -->
+  <section class="view" id="view-casa">
+    <div class="stat-grid" id="statGridCasa"></div>
+
+    <div class="card">
+      <label>Nome completo</label>
+      <input type="text" id="cNome" placeholder="Nome da pessoa" />
+
+      <label>Categoria</label>
+      <div class="segmented" id="catSegCasa">
+        <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+        <button class="sel-casal" data-cat="casal">Casal</button>
+        <button class="sel-solteira" data-cat="solteira">Solteira</button>
+      </div>
+
+      <label>Prazo</label>
+      <div class="segmented" id="prazoSegCasa">
+        <button data-prazo="p1">Até 25/08</button>
+        <button data-prazo="p2">2º · 10/09</button>
+        <button data-prazo="ultimo">Último</button>
+      </div>
+
+      <div class="price-row">
+        <div class="lbl">Valor total da casa</div>
+        <div class="val" id="valorTotalCasa">R$ 0</div>
+      </div>
+
+      <label>Entrada paga agora</label>
+      <input type="text" id="cEntrada" class="mono" placeholder="Ex: 100" inputmode="decimal" />
+
+      <button class="btn" id="btnGerarCasa">Cadastrar na casa</button>
+    </div>
+
+    <div class="card">
+      <h3 class="display" style="margin:0 0 10px;font-size:17px;">Tabela de valores da Casa</h3>
+      <table class="lote" id="tabelaPrecosCasa"></table>
+      <button class="btn secondary" id="btnEditarPrecosCasa" style="margin-top:14px;">Editar valores e prazos</button>
+    </div>
+
+    <input type="text" class="search" id="buscaCasa" placeholder="Buscar por nome..." style="margin-bottom:12px;" />
+    <div id="listaCasa"></div>
+  </section>
+
   <!-- RESUMO -->
   <section class="view" id="view-resumo">
     <div class="stat-grid" id="statGrid"></div>
@@ -332,6 +375,7 @@
   <button class="tab-btn active" data-view="vender"><span class="ic">🎟️</span>Vender</button>
   <button class="tab-btn" data-view="ingressos"><span class="ic">📋</span>Ingressos</button>
   <button class="tab-btn" data-view="checkin"><span class="ic">✅</span>Check-in</button>
+  <button class="tab-btn" data-view="casa"><span class="ic">🏠</span>Casa</button>
   <button class="tab-btn" data-view="resumo"><span class="ic">📊</span>Resumo</button>
 </div>
 
@@ -362,6 +406,16 @@
   </div>
 </div>
 
+<!-- MODAL: editar preços casa -->
+<div class="overlay hidden" id="modalPrecosCasa">
+  <div class="modal">
+    <div class="close"><button id="fecharModalPrecosCasa">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar valores da Casa</h3>
+    <div id="formPrecosCasa"></div>
+    <button class="btn" id="btnSalvarPrecosCasa">Salvar valores</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
@@ -383,14 +437,24 @@ let config = {
     solteiro: { lote1:200, lote2:250, hora:280 },
     casal:    { lote1:130, lote2:150, hora:180 },
     solteira: { lote1:60,  lote2:80,  hora:100 }
+  },
+  casaPrecos: {
+    solteiro: { p1:350, p2:380, ultimo:400 },
+    casal:    { p1:380, p2:400, ultimo:420 },
+    solteira: { p1:185, p2:200, ultimo:220 }
   }
 };
 let tickets = [];
+let casaRecords = [];
 let selCat = 'solteiro';
 let selLote = 'lote1';
+let selCatCasa = 'solteiro';
+let selPrazoCasa = 'p1';
 let filtroAtual = 'todos';
 let html5QrCode = null;
 
+const CASA_PRAZOS = { p1:'Até 25/08', p2:'2º Prazo · 10/09', ultimo:'Último Prazo' };
+const KEY_CASA = 'controle-ingressos:casa';
 const KEY_CFG = 'controle-ingressos:config';
 const KEY_TICKETS = 'controle-ingressos:tickets';
 const SHARED = true; // dados visíveis para quem acessar este mesmo artifact (útil na entrada do evento)
@@ -405,6 +469,10 @@ async function loadAll(){
     const t = await window.storage.get(KEY_TICKETS, SHARED);
     if(t && t.value) tickets = JSON.parse(t.value);
   }catch(e){}
+  try{
+    const h = await window.storage.get(KEY_CASA, SHARED);
+    if(h && h.value) casaRecords = JSON.parse(h.value);
+  }catch(e){}
   document.getElementById('eventName').value = config.eventName;
   document.getElementById('cfgDataEvento').value = config.eventDate;
   document.getElementById('cfgLote1Ini').value = config.lote1Ini;
@@ -416,6 +484,9 @@ async function saveConfig(){
 }
 async function saveTickets(){
   try{ await window.storage.set(KEY_TICKETS, JSON.stringify(tickets), SHARED); }catch(e){}
+}
+async function saveCasa(){
+  try{ await window.storage.set(KEY_CASA, JSON.stringify(casaRecords), SHARED); }catch(e){}
 }
 
 // ---------- helpers ----------
@@ -631,9 +702,137 @@ function renderAll(){
   renderTabelaPrecos();
   renderLista();
   renderResumo();
+  renderSegsCasa();
+  renderTabelaPrecosCasa();
+  renderListaCasa();
+  renderCaixaCasa();
   document.getElementById('eventDateSub').textContent = config.eventDate
     ? 'Evento em ' + config.eventDate.split('-').reverse().join('/')
     : 'defina a data do evento em Resumo → Configurar';
+}
+
+// ---------- CASA: cadastro e controle de pagamentos ----------
+function nextCasaNumber(cat){
+  const prefix = { solteiro:'HSOL', casal:'HCAS', solteira:'HSOA' }[cat];
+  const count = casaRecords.filter(r => r.cat === cat).length + 1;
+  return prefix + '-' + String(count).padStart(4,'0');
+}
+
+function renderSegsCasa(){
+  document.querySelectorAll('#catSegCasa button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.cat === selCatCasa);
+  });
+  document.querySelectorAll('#prazoSegCasa button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.prazo === selPrazoCasa);
+  });
+  const v = config.casaPrecos[selCatCasa][selPrazoCasa];
+  document.getElementById('valorTotalCasa').textContent = fmtBRL(v);
+}
+
+function renderTabelaPrecosCasa(){
+  const tb = document.getElementById('tabelaPrecosCasa');
+  let html = '<tr><th>Categoria</th><th>Até 25/08</th><th>2º · 10/09</th><th>Último</th></tr>';
+  Object.keys(CATS).forEach(c=>{
+    const p = config.casaPrecos[c];
+    html += `<tr><td>${CATS[c].label}</td><td>${fmtBRL(p.p1)}</td><td>${fmtBRL(p.p2)}</td><td>${fmtBRL(p.ultimo)}</td></tr>`;
+  });
+  tb.innerHTML = html;
+}
+
+function totalPago(r){ return r.pagamentos.reduce((s,p)=>s+p.valor,0); }
+function restante(r){ return Math.max(0, r.valorTotal - totalPago(r)); }
+
+async function gerarCasa(){
+  const nome = document.getElementById('cNome').value.trim();
+  if(!nome){ alert('Digite o nome da pessoa.'); return; }
+  const entradaVal = parseFloat(document.getElementById('cEntrada').value.replace(',','.')) || 0;
+  const id = nextCasaNumber(selCatCasa);
+  const valorTotal = config.casaPrecos[selCatCasa][selPrazoCasa];
+  const registro = {
+    id, nome, cat:selCatCasa, prazo:selPrazoCasa, valorTotal,
+    pagamentos: entradaVal > 0 ? [{ valor:entradaVal, data:new Date().toISOString() }] : [],
+    criadoEm: new Date().toISOString()
+  };
+  casaRecords.unshift(registro);
+  await saveCasa();
+  document.getElementById('cNome').value = '';
+  document.getElementById('cEntrada').value = '';
+  renderAll();
+}
+
+async function registrarPagamento(id){
+  const r = casaRecords.find(x=>x.id===id);
+  if(!r) return;
+  const falta = restante(r);
+  const v = prompt(`Registrar novo pagamento de ${r.nome}\nFalta pagar: ${fmtBRL(falta)}\n\nDigite o valor pago agora:`);
+  if(v===null) return;
+  const valor = parseFloat(v.replace(',','.'));
+  if(!valor || valor<=0){ alert('Valor inválido.'); return; }
+  r.pagamentos.push({ valor, data:new Date().toISOString() });
+  await saveCasa();
+  renderAll();
+}
+window.registrarPagamento = registrarPagamento;
+
+function renderListaCasa(){
+  const busca = document.getElementById('buscaCasa').value.trim().toLowerCase();
+  const lista = document.getElementById('listaCasa');
+  let filtrados = casaRecords.filter(r => !busca || r.nome.toLowerCase().includes(busca) || r.id.toLowerCase().includes(busca));
+  if(filtrados.length===0){
+    lista.innerHTML = `<div class="empty"><div class="display">Ninguém cadastrado na casa ainda</div>Cadastre a primeira pessoa acima.</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(r=>{
+    const pago = totalPago(r);
+    const falta = restante(r);
+    const quitado = falta <= 0;
+    return `
+    <div class="stub cat-${r.cat}">
+      <div class="spine"></div>
+      <div class="body">
+        <div class="row1">
+          <div>
+            <div class="name">${r.nome}</div>
+            <div class="meta">${CASA_PRAZOS[r.prazo]} · Total ${fmtBRL(r.valorTotal)}</div>
+          </div>
+          <div class="tag">${CATS[r.cat].label}</div>
+        </div>
+        <div class="foot">
+          <div class="id mono">${r.id}</div>
+          <div class="price">Pago ${fmtBRL(pago)}</div>
+          <div class="status ${quitado?'entrou':'pendente'}">${quitado ? 'Quitado' : 'Falta ' + fmtBRL(falta)}</div>
+        </div>
+        ${quitado ? '' : `<button class="btn secondary" style="margin-top:10px;" onclick="registrarPagamento('${r.id}')">Registrar pagamento</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCaixaCasa(){
+  const totalEsperado = casaRecords.reduce((s,r)=>s+r.valorTotal,0);
+  const totalRecebido = casaRecords.reduce((s,r)=>s+totalPago(r),0);
+  const totalAReceber = totalEsperado - totalRecebido;
+  document.getElementById('statGridCasa').innerHTML = `
+    <div class="stat"><div class="n">${casaRecords.length}</div><div class="l">pessoas na casa</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalRecebido)}</div><div class="l">já recebido (caixa casa)</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalAReceber)}</div><div class="l">ainda a receber</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalEsperado)}</div><div class="l">valor total esperado</div></div>
+  `;
+}
+
+function abrirModalPrecosCasa(){
+  const form = document.getElementById('formPrecosCasa');
+  let html = '';
+  Object.keys(CATS).forEach(c=>{
+    html += `<label>${CATS[c].label} — Até 25/08 / 2º · 10/09 / Último</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" class="mono precoCasaInput" data-cat="${c}" data-prazo="p1" value="${config.casaPrecos[c].p1}">
+        <input type="text" class="mono precoCasaInput" data-cat="${c}" data-prazo="p2" value="${config.casaPrecos[c].p2}">
+        <input type="text" class="mono precoCasaInput" data-cat="${c}" data-prazo="ultimo" value="${config.casaPrecos[c].ultimo}">
+      </div>`;
+  });
+  form.innerHTML = html;
+  document.getElementById('modalPrecosCasa').classList.remove('hidden');
 }
 
 // ---------- check-in ----------
@@ -771,6 +970,28 @@ document.getElementById('btnLimparTudo').addEventListener('click', async ()=>{
   tickets = [];
   await saveTickets();
   renderAll();
+});
+
+document.getElementById('catSegCasa').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selCatCasa = b.dataset.cat; renderSegsCasa();
+});
+document.getElementById('prazoSegCasa').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selPrazoCasa = b.dataset.prazo; renderSegsCasa();
+});
+document.getElementById('btnGerarCasa').addEventListener('click', gerarCasa);
+document.getElementById('buscaCasa').addEventListener('input', renderListaCasa);
+document.getElementById('btnEditarPrecosCasa').addEventListener('click', abrirModalPrecosCasa);
+document.getElementById('fecharModalPrecosCasa').addEventListener('click', ()=>document.getElementById('modalPrecosCasa').classList.add('hidden'));
+document.getElementById('btnSalvarPrecosCasa').addEventListener('click', async ()=>{
+  document.querySelectorAll('.precoCasaInput').forEach(inp=>{
+    const v = parseFloat(inp.value.replace(',','.')) || 0;
+    config.casaPrecos[inp.dataset.cat][inp.dataset.prazo] = v;
+  });
+  await saveConfig();
+  renderAll();
+  document.getElementById('modalPrecosCasa').classList.add('hidden');
 });
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
