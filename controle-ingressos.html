@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Controle de Ingressos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg:#150f22;
+    --surface:#1e1733;
+    --surface-2:#291f40;
+    --line: rgba(243,237,226,0.12);
+    --text:#f3ede2;
+    --muted:#a89fc0;
+    --gold:#d8ab5c;
+    --rose:#c85a72;
+    --teal:#4fa89a;
+    --gold-d:#3a2f18;
+    --rose-d:#3a1f26;
+    --teal-d:#173230;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #201636 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'Work Sans', sans-serif;
+    min-height:100vh;
+    padding-bottom:90px;
+  }
+  h1,h2,h3,.display{ font-family:'Fraunces', serif; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  header.top{
+    padding:28px 20px 18px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+  }
+  header.top .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--gold);
+    text-transform:uppercase;
+  }
+  header.top h1{
+    font-size:28px;
+    font-weight:700;
+    margin:6px 0 2px;
+  }
+  header.top input#eventName{
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-family:'Fraunces',serif;
+    font-size:28px;
+    font-weight:700;
+    text-align:center;
+    width:100%;
+    border-bottom:1px dashed transparent;
+  }
+  header.top input#eventName:focus{ outline:none; border-bottom:1px dashed var(--gold); }
+  header.top .sub{ color:var(--muted); font-size:13px; margin-top:2px;}
+
+  main{ max-width:520px; margin:0 auto; padding:18px 16px 40px; }
+
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; background:var(--surface);
+    border-top:1px solid var(--line);
+    z-index:50;
+  }
+  .tabbar button{
+    flex:1; padding:13px 4px 10px; background:none; border:none;
+    color:var(--muted); font-family:'Work Sans',sans-serif; font-size:12px;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    cursor:pointer;
+  }
+  .tabbar button .ic{ font-size:18px; }
+  .tabbar button.active{ color:var(--gold); }
+
+  .view{ display:none; }
+  .view.active{ display:block; animation:fade .25s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  label{ display:block; font-size:12px; color:var(--muted); margin:14px 0 6px; letter-spacing:.03em; }
+  label:first-child{ margin-top:0; }
+  input[type=text], input[type=date], select{
+    width:100%; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--text); padding:11px 12px; border-radius:9px; font-size:15px;
+    font-family:'Work Sans',sans-serif;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--gold); }
+
+  .segmented{ display:flex; gap:8px; }
+  .segmented button{
+    flex:1; padding:10px 6px; border-radius:9px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--text); font-size:13px; cursor:pointer;
+    font-family:'Work Sans',sans-serif;
+  }
+  .segmented button.sel-solteiro.on{ background:var(--gold-d); border-color:var(--gold); color:var(--gold); }
+  .segmented button.sel-casal.on{ background:var(--rose-d); border-color:var(--rose); color:var(--rose); }
+  .segmented button.sel-solteira.on{ background:var(--teal-d); border-color:var(--teal); color:var(--teal); }
+  .segmented button.on:not(.sel-solteiro):not(.sel-casal):not(.sel-solteira){ background:var(--gold-d); border-color:var(--gold); color:var(--gold); }
+
+  .price-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-top:16px; padding-top:14px; border-top:1px dashed var(--line);
+  }
+  .price-row .lbl{ font-size:12px; color:var(--muted); }
+  .price-row .val{ font-family:'Fraunces',serif; font-size:26px; font-weight:700; color:var(--gold); }
+
+  .btn{
+    width:100%; padding:14px; border-radius:10px; border:none;
+    background:linear-gradient(135deg,var(--gold),#b98a3e); color:#1a1305;
+    font-weight:600; font-size:15px; cursor:pointer; margin-top:16px;
+    font-family:'Work Sans',sans-serif;
+  }
+  .btn.secondary{ background:var(--surface-2); color:var(--text); border:1px solid var(--line); }
+  .btn.danger{ background:var(--rose-d); color:var(--rose); border:1px solid var(--rose); }
+
+  /* ticket stub */
+  .stub{
+    display:flex; border-radius:14px; overflow:hidden; margin-bottom:12px;
+    border:1px solid var(--line); background:var(--surface);
+  }
+  .stub .spine{ width:7px; }
+  .stub.cat-solteiro .spine{ background:var(--gold); }
+  .stub.cat-casal .spine{ background:var(--rose); }
+  .stub.cat-solteira .spine{ background:var(--teal); }
+  .stub .body{ flex:1; padding:14px 14px 14px 12px; }
+  .stub .row1{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .stub .name{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; }
+  .stub .meta{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .stub .tag{
+    font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 8px;
+    border-radius:20px; white-space:nowrap; letter-spacing:.03em;
+  }
+  .stub.cat-solteiro .tag{ background:var(--gold-d); color:var(--gold); }
+  .stub.cat-casal .tag{ background:var(--rose-d); color:var(--rose); }
+  .stub.cat-solteira .tag{ background:var(--teal-d); color:var(--teal); }
+  .stub .foot{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .stub .id{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .stub .price{ font-family:'Fraunces',serif; font-weight:700; color:var(--gold); }
+  .stub .status{ font-size:11px; padding:2px 8px; border-radius:20px; }
+  .status.entrou{ background:#173a1f; color:#6fcf7f; }
+  .status.pendente{ background:var(--surface-2); color:var(--muted); }
+
+  .search{ margin-bottom:14px; }
+  .filters{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .filters button{
+    padding:6px 12px; border-radius:20px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--muted); font-size:12px; cursor:pointer;
+  }
+  .filters button.on{ border-color:var(--gold); color:var(--gold); }
+
+  .empty{ text-align:center; padding:40px 10px; color:var(--muted); }
+  .empty .display{ font-size:20px; color:var(--text); margin-bottom:6px; }
+
+  /* summary */
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .stat{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px;
+  }
+  .stat .n{ font-family:'Fraunces',serif; font-size:24px; font-weight:700; color:var(--gold); }
+  .stat .l{ font-size:11px; color:var(--muted); margin-top:2px; }
+  table.lote{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.lote th{ text-align:left; color:var(--muted); font-weight:500; font-size:11px; padding:6px 4px; border-bottom:1px solid var(--line); }
+  table.lote td{ padding:8px 4px; border-bottom:1px solid var(--line); }
+  table.lote tr:last-child td{ border-bottom:none; }
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(10,7,17,0.8); z-index:100;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .overlay.hidden{ display:none; }
+  .modal{
+    background:var(--surface); width:100%; max-width:520px; border-radius:20px 20px 0 0;
+    padding:22px 20px 26px; max-height:88vh; overflow-y:auto;
+  }
+  .modal .close{ text-align:right; }
+  .modal .close button{ background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
+
+  .ticket-full{
+    background:var(--surface-2); border-radius:16px; padding:22px; text-align:center; position:relative;
+  }
+  .ticket-full .catband{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+  .ticket-full.cat-solteiro .catband{ color:var(--gold);}
+  .ticket-full.cat-casal .catband{ color:var(--rose);}
+  .ticket-full.cat-solteira .catband{ color:var(--teal);}
+  .ticket-full h2{ font-size:24px; margin:8px 0 2px; }
+  .ticket-full .evt{ color:var(--muted); font-size:13px; margin-bottom:16px;}
+  .qrbox{ background:#fff; padding:12px; border-radius:12px; display:inline-block; margin:6px 0 14px; }
+  .ticket-full .idline{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); letter-spacing:.05em; }
+  .ticket-full .perfline{
+    border-top:2px dashed var(--line); margin:18px 0; position:relative;
+  }
+  .ticket-full .pricebig{ font-family:'Fraunces',serif; font-size:20px; font-weight:700; color:var(--gold); }
+
+  #scanBox{ width:100%; border-radius:12px; overflow:hidden; margin-top:10px; }
+  .scan-result{ margin-top:14px; padding:14px; border-radius:12px; }
+  .scan-ok{ background:#173a1f; border:1px solid #2f7a41; }
+  .scan-bad{ background:var(--rose-d); border:1px solid var(--rose); }
+  .scan-used{ background:#3a2f18; border:1px solid var(--gold); }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #printArea, #printArea *{ visibility:visible; }
+    #printArea{ position:absolute; top:0; left:0; width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="eyebrow">Controle de Entrada</div>
+  <input id="eventName" value="Meu Evento" />
+  <div class="sub" id="eventDateSub">defina a data do evento em Resumo → Configurar</div>
+</header>
+
+<main>
+
+  <!-- VENDER -->
+  <section class="view active" id="view-vender">
+    <div class="card">
+      <label>Nome completo</label>
+      <input type="text" id="fNome" placeholder="Nome do comprador" />
+
+      <label>Categoria</label>
+      <div class="segmented" id="catSeg">
+        <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+        <button class="sel-casal" data-cat="casal">Casal</button>
+        <button class="sel-solteira" data-cat="solteira">Solteira</button>
+      </div>
+
+      <label>Lote</label>
+      <div class="segmented" id="loteSeg">
+        <button data-lote="lote1">1º Lote</button>
+        <button data-lote="lote2">2º Lote</button>
+        <button data-lote="hora">Na Hora</button>
+      </div>
+
+      <label>Forma de pagamento (opcional)</label>
+      <select id="fPagamento">
+        <option value="">Não informado</option>
+        <option value="Pix">Pix</option>
+        <option value="Dinheiro">Dinheiro</option>
+        <option value="Cartão">Cartão</option>
+      </select>
+
+      <div class="price-row">
+        <div class="lbl">Valor do ingresso</div>
+        <div class="val" id="precoAtual">R$ 0</div>
+      </div>
+
+      <button class="btn" id="btnGerar">Gerar ingresso + QR Code</button>
+    </div>
+
+    <div class="card" id="cfgCard">
+      <h3 class="display" style="margin:0 0 10px;font-size:17px;">Tabela de valores por lote</h3>
+      <table class="lote" id="tabelaPrecos"></table>
+      <button class="btn secondary" id="btnEditarPrecos" style="margin-top:14px;">Editar valores e datas</button>
+    </div>
+  </section>
+
+  <!-- INGRESSOS -->
+  <section class="view" id="view-ingressos">
+    <input type="text" class="search" id="busca" placeholder="Buscar por nome ou código..." />
+    <div class="filters" id="filtros">
+      <button class="on" data-f="todos">Todos</button>
+      <button data-f="solteiro">Solteiro</button>
+      <button data-f="casal">Casal</button>
+      <button data-f="solteira">Solteira</button>
+      <button data-f="pendente">Não entrou</button>
+      <button data-f="entrou">Já entrou</button>
+    </div>
+    <div id="listaIngressos"></div>
+  </section>
+
+  <!-- CHECK-IN -->
+  <section class="view" id="view-checkin">
+    <div class="card">
+      <h3 class="display" style="margin:0 0 4px;font-size:18px;">Confirmar entrada</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">Escaneie o QR do ingresso na câmera ou digite o código manualmente.</p>
+      <button class="btn secondary" id="btnScan">Abrir câmera para escanear</button>
+      <div id="scanBox"></div>
+      <label>Ou digite o código do ingresso</label>
+      <input type="text" id="codigoManual" placeholder="Ex: SOL-0001" class="mono" />
+      <button class="btn" id="btnConfirmarManual">Confirmar entrada</button>
+      <div id="scanResultado"></div>
+    </div>
+  </section>
+
+  <!-- RESUMO -->
+  <section class="view" id="view-resumo">
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="card">
+      <h3 class="display" style="margin:0 0 12px;font-size:17px;">Vendas por categoria e lote</h3>
+      <table class="lote" id="resumoTabela"></table>
+    </div>
+    <div class="card">
+      <h3 class="display" style="margin:0 0 10px;font-size:17px;">Configurar evento</h3>
+      <label>Data do evento</label>
+      <input type="date" id="cfgDataEvento" />
+      <label>Início do 1º lote</label>
+      <input type="date" id="cfgLote1Ini" />
+      <label>Fim do 1º lote (início do 2º)</label>
+      <input type="date" id="cfgLote1Fim" />
+      <button class="btn secondary" id="btnSalvarCfg">Salvar configuração</button>
+    </div>
+    <button class="btn danger" id="btnLimparTudo">Apagar todos os dados</button>
+  </section>
+
+</main>
+
+<div class="tabbar">
+  <button class="tab-btn active" data-view="vender"><span class="ic">🎟️</span>Vender</button>
+  <button class="tab-btn" data-view="ingressos"><span class="ic">📋</span>Ingressos</button>
+  <button class="tab-btn" data-view="checkin"><span class="ic">✅</span>Check-in</button>
+  <button class="tab-btn" data-view="resumo"><span class="ic">📊</span>Resumo</button>
+</div>
+
+<!-- MODAL: ticket gerado -->
+<div class="overlay hidden" id="modalTicket">
+  <div class="modal">
+    <div class="close"><button id="fecharModal">✕</button></div>
+    <div id="printArea">
+      <div class="ticket-full" id="ticketFullBox">
+        <!-- preenchido via JS -->
+      </div>
+    </div>
+    <button class="btn" id="btnCompartilhar" style="margin-top:16px;">Enviar para a pessoa (WhatsApp / imagem)</button>
+    <button class="btn secondary" id="btnBaixar" style="margin-top:10px;">Baixar imagem do ingresso</button>
+    <button class="btn secondary" id="btnImprimir" style="margin-top:10px;">Imprimir / salvar como PDF</button>
+    <p id="shareHint" style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px;"></p>
+  </div>
+</div>
+
+<!-- MODAL: editar preços -->
+<div class="overlay hidden" id="modalPrecos">
+  <div class="modal">
+    <div class="close"><button id="fecharModalPrecos">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar valores</h3>
+    <div id="formPrecos"></div>
+    <button class="btn" id="btnSalvarPrecos">Salvar valores</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+(function(){
+
+// ---------- state ----------
+const CATS = {
+  solteiro: { label:'Solteiro', prefix:'SOL' },
+  casal:    { label:'Casal',    prefix:'CAS' },
+  solteira: { label:'Solteira', prefix:'SOA' }
+};
+const LOTES = { lote1:'1º Lote', lote2:'2º Lote', hora:'Na Hora' };
+
+let config = {
+  eventName: 'Meu Evento',
+  eventDate: '',
+  lote1Ini: '2026-08-15',
+  lote1Fim: '2026-08-25',
+  precos: {
+    solteiro: { lote1:200, lote2:250, hora:280 },
+    casal:    { lote1:130, lote2:150, hora:180 },
+    solteira: { lote1:60,  lote2:80,  hora:100 }
+  }
+};
+let tickets = [];
+let selCat = 'solteiro';
+let selLote = 'lote1';
+let filtroAtual = 'todos';
+let html5QrCode = null;
+
+const KEY_CFG = 'controle-ingressos:config';
+const KEY_TICKETS = 'controle-ingressos:tickets';
+const SHARED = true; // dados visíveis para quem acessar este mesmo artifact (útil na entrada do evento)
+
+// ---------- storage ----------
+async function loadAll(){
+  try{
+    const c = await window.storage.get(KEY_CFG, SHARED);
+    if(c && c.value) config = Object.assign(config, JSON.parse(c.value));
+  }catch(e){}
+  try{
+    const t = await window.storage.get(KEY_TICKETS, SHARED);
+    if(t && t.value) tickets = JSON.parse(t.value);
+  }catch(e){}
+  document.getElementById('eventName').value = config.eventName;
+  document.getElementById('cfgDataEvento').value = config.eventDate;
+  document.getElementById('cfgLote1Ini').value = config.lote1Ini;
+  document.getElementById('cfgLote1Fim').value = config.lote1Fim;
+  renderAll();
+}
+async function saveConfig(){
+  try{ await window.storage.set(KEY_CFG, JSON.stringify(config), SHARED); }catch(e){}
+}
+async function saveTickets(){
+  try{ await window.storage.set(KEY_TICKETS, JSON.stringify(tickets), SHARED); }catch(e){}
+}
+
+// ---------- helpers ----------
+function fmtBRL(v){ return 'R$ ' + Number(v).toFixed(0); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function sugerirLote(){
+  const hoje = todayISO();
+  if(config.eventDate && hoje >= config.eventDate) return 'hora';
+  if(config.lote1Ini && config.lote1Fim && hoje >= config.lote1Ini && hoje <= config.lote1Fim) return 'lote1';
+  if(config.lote1Fim && hoje > config.lote1Fim) return 'lote2';
+  return 'lote1';
+}
+
+function nextTicketNumber(cat){
+  const count = tickets.filter(t => t.cat === cat).length + 1;
+  return CATS[cat].prefix + '-' + String(count).padStart(4,'0');
+}
+
+function updatePrecoAtual(){
+  const p = config.precos[selCat][selLote];
+  document.getElementById('precoAtual').textContent = fmtBRL(p);
+}
+
+// ---------- render: seg controls ----------
+function renderSegs(){
+  document.querySelectorAll('#catSeg button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.cat === selCat);
+  });
+  document.querySelectorAll('#loteSeg button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.lote === selLote);
+  });
+  updatePrecoAtual();
+}
+
+// ---------- render: tabela de preços (vender) ----------
+function renderTabelaPrecos(){
+  const tb = document.getElementById('tabelaPrecos');
+  let html = '<tr><th>Categoria</th><th>1º Lote</th><th>2º Lote</th><th>Na hora</th></tr>';
+  Object.keys(CATS).forEach(c=>{
+    const p = config.precos[c];
+    html += `<tr><td>${CATS[c].label}</td><td>${fmtBRL(p.lote1)}</td><td>${fmtBRL(p.lote2)}</td><td>${fmtBRL(p.hora)}</td></tr>`;
+  });
+  tb.innerHTML = html;
+}
+
+// ---------- gerar ingresso ----------
+function gerarQRCode(container, texto){
+  container.innerHTML = '';
+  new QRCode(container, { text: texto, width: 160, height: 160, colorDark:'#150f22', colorLight:'#ffffff' });
+}
+
+async function gerarIngresso(){
+  const nome = document.getElementById('fNome').value.trim();
+  if(!nome){ alert('Digite o nome do comprador.'); return; }
+  const pagamento = document.getElementById('fPagamento').value;
+  const id = nextTicketNumber(selCat);
+  const preco = config.precos[selCat][selLote];
+  const ticket = {
+    id, nome, cat:selCat, lote:selLote, preco, pagamento,
+    dataVenda: new Date().toISOString(),
+    checkedIn:false, checkinTime:null
+  };
+  tickets.unshift(ticket);
+  await saveTickets();
+  document.getElementById('fNome').value = '';
+  showTicketModal(ticket);
+  renderAll();
+}
+
+function showTicketModal(t){
+  const box = document.getElementById('ticketFullBox');
+  box.className = 'ticket-full cat-' + t.cat;
+  box.innerHTML = `
+    <div class="catband">${CATS[t.cat].label} · ${LOTES[t.lote]}</div>
+    <h2 class="display">${t.nome}</h2>
+    <div class="evt">${config.eventName}${config.eventDate ? ' · ' + config.eventDate.split('-').reverse().join('/') : ''}</div>
+    <div class="qrbox" id="qrRender"></div>
+    <div class="idline">${t.id}</div>
+    <div class="perfline"></div>
+    <div class="pricebig">${fmtBRL(t.preco)}</div>
+  `;
+  gerarQRCode(document.getElementById('qrRender'), t.id);
+  document.getElementById('modalTicket').classList.remove('hidden');
+  window.currentTicket = t;
+  document.getElementById('shareHint').textContent = '';
+}
+
+function ticketFileName(t){
+  return 'ingresso-' + t.id + '.png';
+}
+
+async function renderTicketCanvas(){
+  const el = document.getElementById('ticketFullBox');
+  return await html2canvas(el, { backgroundColor: '#1e1733', scale: 2 });
+}
+
+async function baixarTicket(){
+  if(!window.currentTicket) return;
+  const canvas = await renderTicketCanvas();
+  const link = document.createElement('a');
+  link.download = ticketFileName(window.currentTicket);
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+async function compartilharTicket(){
+  if(!window.currentTicket) return;
+  const hint = document.getElementById('shareHint');
+  const canvas = await renderTicketCanvas();
+  canvas.toBlob(async (blob)=>{
+    const file = new File([blob], ticketFileName(window.currentTicket), { type:'image/png' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      try{
+        await navigator.share({
+          files:[file],
+          title:'Ingresso ' + window.currentTicket.nome,
+          text:'Aqui está seu ingresso para ' + config.eventName + '! Apresente este QR code na entrada.'
+        });
+        return;
+      }catch(e){ /* usuário cancelou ou não suportado, cai no fallback */ }
+    }
+    // fallback: baixa a imagem e orienta a enviar manualmente
+    const link = document.createElement('a');
+    link.download = ticketFileName(window.currentTicket);
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    hint.textContent = 'Imagem baixada. Agora é só anexar no WhatsApp da pessoa.';
+  }, 'image/png');
+}
+
+// ---------- lista de ingressos ----------
+function renderLista(){
+  const busca = document.getElementById('busca').value.trim().toLowerCase();
+  const lista = document.getElementById('listaIngressos');
+  let filtrados = tickets.filter(t=>{
+    if(filtroAtual==='pendente' && t.checkedIn) return false;
+    if(filtroAtual==='entrou' && !t.checkedIn) return false;
+    if(['solteiro','casal','solteira'].includes(filtroAtual) && t.cat !== filtroAtual) return false;
+    if(busca && !(t.nome.toLowerCase().includes(busca) || t.id.toLowerCase().includes(busca))) return false;
+    return true;
+  });
+  if(filtrados.length===0){
+    lista.innerHTML = `<div class="empty"><div class="display">Nenhum ingresso ainda</div>Venda o primeiro ingresso na aba Vender.</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(t=>`
+    <div class="stub cat-${t.cat}" data-id="${t.id}">
+      <div class="spine"></div>
+      <div class="body">
+        <div class="row1">
+          <div>
+            <div class="name">${t.nome}</div>
+            <div class="meta">${LOTES[t.lote]} · ${t.pagamento || 'pagamento não informado'}</div>
+          </div>
+          <div class="tag">${CATS[t.cat].label}</div>
+        </div>
+        <div class="foot">
+          <div class="id mono">${t.id}</div>
+          <div class="price">${fmtBRL(t.preco)}</div>
+          <div class="status ${t.checkedIn?'entrou':'pendente'}">${t.checkedIn?'Entrou':'Pendente'}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  lista.querySelectorAll('.stub').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const t = tickets.find(x=>x.id===el.dataset.id);
+      if(t) showTicketModal(t);
+    });
+  });
+}
+
+// ---------- resumo ----------
+function renderResumo(){
+  const totalIngressos = tickets.length;
+  const totalReceita = tickets.reduce((s,t)=>s+t.preco,0);
+  const totalEntraram = tickets.filter(t=>t.checkedIn).length;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat"><div class="n">${totalIngressos}</div><div class="l">ingressos vendidos</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalReceita)}</div><div class="l">receita total</div></div>
+    <div class="stat"><div class="n">${totalEntraram}</div><div class="l">já entraram</div></div>
+    <div class="stat"><div class="n">${totalIngressos-totalEntraram}</div><div class="l">ainda não entraram</div></div>
+  `;
+
+  let html = '<tr><th>Categoria</th><th>Lote</th><th>Qtd</th><th>Total</th></tr>';
+  Object.keys(CATS).forEach(c=>{
+    Object.keys(LOTES).forEach(l=>{
+      const subset = tickets.filter(t=>t.cat===c && t.lote===l);
+      if(subset.length===0) return;
+      const soma = subset.reduce((s,t)=>s+t.preco,0);
+      html += `<tr><td>${CATS[c].label}</td><td>${LOTES[l]}</td><td>${subset.length}</td><td>${fmtBRL(soma)}</td></tr>`;
+    });
+  });
+  if(tickets.length===0) html += '<tr><td colspan="4" style="color:var(--muted);">Nenhuma venda registrada ainda.</td></tr>';
+  document.getElementById('resumoTabela').innerHTML = html;
+}
+
+function renderAll(){
+  renderSegs();
+  renderTabelaPrecos();
+  renderLista();
+  renderResumo();
+  document.getElementById('eventDateSub').textContent = config.eventDate
+    ? 'Evento em ' + config.eventDate.split('-').reverse().join('/')
+    : 'defina a data do evento em Resumo → Configurar';
+}
+
+// ---------- check-in ----------
+function processarCodigo(codigo){
+  const res = document.getElementById('scanResultado');
+  const t = tickets.find(x=>x.id.toLowerCase() === codigo.trim().toLowerCase());
+  if(!t){
+    res.innerHTML = `<div class="scan-result scan-bad">Código não encontrado: ${codigo}</div>`;
+    return;
+  }
+  if(t.checkedIn){
+    res.innerHTML = `<div class="scan-result scan-used">⚠️ ${t.nome} (${t.id}) já entrou às ${new Date(t.checkinTime).toLocaleTimeString('pt-BR')}</div>`;
+    return;
+  }
+  t.checkedIn = true;
+  t.checkinTime = new Date().toISOString();
+  saveTickets();
+  renderAll();
+  res.innerHTML = `<div class="scan-result scan-ok">✅ Entrada confirmada: ${t.nome} — ${CATS[t.cat].label}</div>`;
+}
+
+function startScanner(){
+  const scanBox = document.getElementById('scanBox');
+  if(typeof Html5Qrcode === 'undefined'){
+    scanBox.innerHTML = '<p style="color:var(--muted);font-size:13px;">Câmera indisponível neste dispositivo/navegador. Use o código manual abaixo.</p>';
+    return;
+  }
+  scanBox.innerHTML = '<div id="qrReader"></div>';
+  html5QrCode = new Html5Qrcode("qrReader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 220 },
+    (decodedText)=>{ processarCodigo(decodedText); }
+  ).catch(()=>{
+    scanBox.innerHTML = '<p style="color:var(--muted);font-size:13px;">Não foi possível acessar a câmera. Use o código manual abaixo.</p>';
+  });
+}
+
+// ---------- editar preços ----------
+function abrirModalPrecos(){
+  const form = document.getElementById('formPrecos');
+  let html = '';
+  Object.keys(CATS).forEach(c=>{
+    html += `<label>${CATS[c].label} — 1º Lote / 2º Lote / Na hora</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" class="mono precoInput" data-cat="${c}" data-lote="lote1" value="${config.precos[c].lote1}">
+        <input type="text" class="mono precoInput" data-cat="${c}" data-lote="lote2" value="${config.precos[c].lote2}">
+        <input type="text" class="mono precoInput" data-cat="${c}" data-lote="hora" value="${config.precos[c].hora}">
+      </div>`;
+  });
+  form.innerHTML = html;
+  document.getElementById('modalPrecos').classList.remove('hidden');
+}
+
+// ---------- events ----------
+document.getElementById('catSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selCat = b.dataset.cat; renderSegs();
+});
+document.getElementById('loteSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selLote = b.dataset.lote; renderSegs();
+});
+document.getElementById('btnGerar').addEventListener('click', gerarIngresso);
+document.getElementById('btnEditarPrecos').addEventListener('click', abrirModalPrecos);
+document.getElementById('fecharModalPrecos').addEventListener('click', ()=>document.getElementById('modalPrecos').classList.add('hidden'));
+document.getElementById('btnSalvarPrecos').addEventListener('click', async ()=>{
+  document.querySelectorAll('.precoInput').forEach(inp=>{
+    const v = parseFloat(inp.value.replace(',','.')) || 0;
+    config.precos[inp.dataset.cat][inp.dataset.lote] = v;
+  });
+  await saveConfig();
+  renderAll();
+  document.getElementById('modalPrecos').classList.add('hidden');
+});
+
+document.getElementById('fecharModal').addEventListener('click', ()=>document.getElementById('modalTicket').classList.add('hidden'));
+document.getElementById('btnImprimir').addEventListener('click', ()=>window.print());
+document.getElementById('btnBaixar').addEventListener('click', baixarTicket);
+document.getElementById('btnCompartilhar').addEventListener('click', compartilharTicket);
+
+document.getElementById('busca').addEventListener('input', renderLista);
+document.getElementById('filtros').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  filtroAtual = b.dataset.f;
+  document.querySelectorAll('#filtros button').forEach(x=>x.classList.toggle('on', x===b));
+  renderLista();
+});
+
+document.getElementById('btnScan').addEventListener('click', startScanner);
+document.getElementById('btnConfirmarManual').addEventListener('click', ()=>{
+  const v = document.getElementById('codigoManual').value;
+  if(v.trim()) processarCodigo(v);
+});
+
+document.getElementById('eventName').addEventListener('change', async e=>{
+  config.eventName = e.target.value || 'Meu Evento';
+  await saveConfig();
+});
+document.getElementById('btnSalvarCfg').addEventListener('click', async ()=>{
+  config.eventDate = document.getElementById('cfgDataEvento').value;
+  config.lote1Ini = document.getElementById('cfgLote1Ini').value;
+  config.lote1Fim = document.getElementById('cfgLote1Fim').value;
+  await saveConfig();
+  selLote = sugerirLote();
+  renderAll();
+  alert('Configuração salva.');
+});
+document.getElementById('btnLimparTudo').addEventListener('click', async ()=>{
+  if(!confirm('Isso vai apagar TODOS os ingressos salvos. Tem certeza?')) return;
+  tickets = [];
+  await saveTickets();
+  renderAll();
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view !== 'checkin' && html5QrCode){
+      html5QrCode.stop().catch(()=>{});
+    }
+  });
+});
+
+// ---------- init ----------
+selLote = sugerirLote();
+loadAll();
+
+})();
+</script>
+</body>
+</html>
