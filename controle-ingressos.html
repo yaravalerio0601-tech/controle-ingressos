@@ -252,6 +252,7 @@
         <button data-lote="lote2">2º Lote</button>
         <button data-lote="hora">Na Hora</button>
       </div>
+      <p style="color:var(--muted); font-size:11.5px; margin:6px 0 0;">O lote vem pré-selecionado pela data, mas você pode tocar em outro a qualquer momento — útil pra lançar vendas atrasadas do 1º lote.</p>
 
       <label>Forma de pagamento (opcional)</label>
       <select id="fPagamento">
@@ -334,6 +335,7 @@
         <button data-prazo="p2">2º · 10/09</button>
         <button data-prazo="ultimo">Último</button>
       </div>
+      <p style="color:var(--muted); font-size:11.5px; margin:6px 0 0;">Toque no prazo que quiser a qualquer momento, mesmo que a data já tenha passado — útil pra lançar cadastros atrasados do 1º prazo.</p>
 
       <div class="price-row">
         <div class="lbl">Valor total da casa</div>
@@ -420,6 +422,40 @@
     <h3 class="display" style="margin:0 0 12px;">Editar valores da Casa</h3>
     <div id="formPrecosCasa"></div>
     <button class="btn" id="btnSalvarPrecosCasa">Salvar valores</button>
+  </div>
+</div>
+
+<!-- MODAL: editar registro casa -->
+<div class="overlay hidden" id="modalEditarCasa">
+  <div class="modal">
+    <div class="close"><button id="fecharModalEditarCasa">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar cadastro</h3>
+
+    <label>Nome completo</label>
+    <input type="text" id="eNome" />
+
+    <label>Categoria</label>
+    <div class="segmented" id="catSegEditar">
+      <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+      <button class="sel-casal" data-cat="casal">Casal</button>
+      <button class="sel-solteira" data-cat="solteira">Solteira</button>
+    </div>
+
+    <label>Prazo</label>
+    <div class="segmented" id="prazoSegEditar">
+      <button data-prazo="p1">Até 25/08</button>
+      <button data-prazo="p2">2º · 10/09</button>
+      <button data-prazo="ultimo">Último</button>
+    </div>
+
+    <div class="price-row">
+      <div class="lbl">Novo valor total</div>
+      <div class="val" id="valorTotalEditar">R$ 0</div>
+    </div>
+    <p style="color:var(--muted); font-size:11.5px; margin-top:6px;">Os pagamentos já registrados continuam valendo — só o valor total e o saldo restante são recalculados.</p>
+
+    <button class="btn" id="btnSalvarEdicaoCasa" style="margin-top:16px;">Salvar alterações</button>
+    <button class="btn danger" id="btnExcluirCasa" style="margin-top:10px;">Excluir este cadastro</button>
   </div>
 </div>
 
@@ -824,6 +860,7 @@ function renderListaCasa(){
           <div class="status ${quitado?'entrou':'pendente'}">${quitado ? 'Quitado' : 'Falta ' + fmtBRL(falta)}</div>
         </div>
         ${quitado ? '' : `<button class="btn secondary" style="margin-top:10px;" onclick="registrarPagamento('${r.id}')">Registrar pagamento</button>`}
+        <button class="btn secondary" style="margin-top:8px;" onclick="abrirEdicaoCasa('${r.id}')">Editar</button>
       </div>
     </div>`;
   }).join('');
@@ -855,6 +892,68 @@ function abrirModalPrecosCasa(){
   form.innerHTML = html;
   document.getElementById('modalPrecosCasa').classList.remove('hidden');
 }
+
+// ---------- CASA: editar cadastro existente ----------
+let editandoCasaId = null;
+
+function abrirEdicaoCasa(id){
+  const r = casaRecords.find(x=>x.id===id);
+  if(!r) return;
+  editandoCasaId = id;
+  document.getElementById('eNome').value = r.nome;
+  document.querySelectorAll('#catSegEditar button').forEach(b=>b.classList.toggle('on', b.dataset.cat===r.cat));
+  document.querySelectorAll('#prazoSegEditar button').forEach(b=>b.classList.toggle('on', b.dataset.prazo===r.prazo));
+  updateValorTotalEditar();
+  document.getElementById('modalEditarCasa').classList.remove('hidden');
+}
+window.abrirEdicaoCasa = abrirEdicaoCasa;
+
+function updateValorTotalEditar(){
+  const cat = document.querySelector('#catSegEditar button.on')?.dataset.cat || 'solteiro';
+  const prazo = document.querySelector('#prazoSegEditar button.on')?.dataset.prazo || 'p1';
+  document.getElementById('valorTotalEditar').textContent = fmtBRL(config.casaPrecos[cat][prazo]);
+}
+
+document.getElementById('catSegEditar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#catSegEditar button').forEach(x=>x.classList.toggle('on', x===b));
+  updateValorTotalEditar();
+});
+document.getElementById('prazoSegEditar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#prazoSegEditar button').forEach(x=>x.classList.toggle('on', x===b));
+  updateValorTotalEditar();
+});
+document.getElementById('fecharModalEditarCasa').addEventListener('click', ()=>{
+  document.getElementById('modalEditarCasa').classList.add('hidden');
+  editandoCasaId = null;
+});
+document.getElementById('btnSalvarEdicaoCasa').addEventListener('click', async ()=>{
+  const r = casaRecords.find(x=>x.id===editandoCasaId);
+  if(!r) return;
+  const novoNome = document.getElementById('eNome').value.trim();
+  if(!novoNome){ alert('Digite o nome.'); return; }
+  const novoCat = document.querySelector('#catSegEditar button.on')?.dataset.cat;
+  const novoPrazo = document.querySelector('#prazoSegEditar button.on')?.dataset.prazo;
+  r.nome = novoNome;
+  r.cat = novoCat;
+  r.prazo = novoPrazo;
+  r.valorTotal = config.casaPrecos[novoCat][novoPrazo];
+  await saveCasa();
+  renderAll();
+  document.getElementById('modalEditarCasa').classList.add('hidden');
+  editandoCasaId = null;
+});
+document.getElementById('btnExcluirCasa').addEventListener('click', async ()=>{
+  const r = casaRecords.find(x=>x.id===editandoCasaId);
+  if(!r) return;
+  if(!confirm(`Excluir o cadastro de ${r.nome}? Isso não pode ser desfeito.`)) return;
+  casaRecords = casaRecords.filter(x=>x.id!==editandoCasaId);
+  await saveCasa();
+  renderAll();
+  document.getElementById('modalEditarCasa').classList.add('hidden');
+  editandoCasaId = null;
+});
 
 // ---------- check-in ----------
 function processarCodigo(codigo){
