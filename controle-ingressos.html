@@ -270,6 +270,9 @@
         <span>Ingresso de cortesia (sem cobrança)</span>
       </label>
 
+      <label>Entrada paga agora (deixe em branco se pagou tudo)</label>
+      <input type="text" id="fEntrada" class="mono" placeholder="Ex: 100" inputmode="decimal" />
+
       <div class="price-row">
         <div class="lbl">Valor do ingresso</div>
         <div class="val" id="precoAtual">R$ 0</div>
@@ -653,10 +656,13 @@ async function gerarIngresso(){
   const pagamento = document.getElementById('fPagamento').value;
   const whatsapp = document.getElementById('fWhats').value.trim();
   const cortesia = document.getElementById('fCortesia').checked;
+  const entradaVal = parseFloat(document.getElementById('fEntrada').value.replace(',','.')) || 0;
   const id = nextTicketNumber(selCat);
   const preco = cortesia ? 0 : config.precos[selCat][selLote];
+  const valorPago = cortesia ? preco : (entradaVal > 0 ? entradaVal : preco); // sem entrada informada = considera pago integral
   const ticket = {
     id, nome, cat:selCat, lote:selLote, preco, pagamento, whatsapp, cortesia,
+    pagamentos: valorPago > 0 ? [{ valor:valorPago, data:new Date().toISOString() }] : [],
     dataVenda: new Date().toISOString(),
     checkedIn:false, checkinTime:null
   };
@@ -664,6 +670,7 @@ async function gerarIngresso(){
   await saveTickets();
   document.getElementById('fNome').value = '';
   document.getElementById('fWhats').value = '';
+  document.getElementById('fEntrada').value = '';
   document.getElementById('fCortesia').checked = false;
   updatePrecoAtual();
   showTicketModal(ticket);
@@ -681,6 +688,7 @@ function showTicketModal(t){
     <div class="idline">${t.id}</div>
     <div class="perfline"></div>
     <div class="pricebig">${t.cortesia ? '🎁 Ingresso de Cortesia' : fmtBRL(t.preco)}</div>
+    ${(!t.cortesia && restanteTicket(t) > 0) ? `<div style="color:var(--rose); font-size:12px; margin-top:6px;">💰 Falta pagar: ${fmtBRL(restanteTicket(t))}</div>` : ''}
   `;
   gerarQRCode(document.getElementById('qrRender'), t.id);
   document.getElementById('modalTicket').classList.remove('hidden');
@@ -740,6 +748,27 @@ async function compartilharTicket(){
 }
 
 // ---------- lista de ingressos ----------
+function totalPagoTicket(t){
+  if(t.pagamentos === undefined) return t.preco; // ingressos antigos, sem controle de parcelas: considera pago integral
+  return t.pagamentos.reduce((s,p)=>s+p.valor,0);
+}
+function restanteTicket(t){ return Math.max(0, (t.preco||0) - totalPagoTicket(t)); }
+
+async function registrarPagamentoIngresso(id){
+  const t = tickets.find(x=>x.id===id);
+  if(!t) return;
+  if(!t.pagamentos) t.pagamentos = [];
+  const falta = restanteTicket(t);
+  const v = prompt(`Registrar novo pagamento de ${t.nome}\nFalta pagar: ${fmtBRL(falta)}\n\nDigite o valor pago agora:`);
+  if(v===null) return;
+  const valor = parseFloat(v.replace(',','.'));
+  if(!valor || valor<=0){ alert('Valor inválido.'); return; }
+  t.pagamentos.push({ valor, data:new Date().toISOString() });
+  await saveTickets();
+  renderAll();
+}
+window.registrarPagamentoIngresso = registrarPagamentoIngresso;
+
 function renderLista(){
   const busca = document.getElementById('busca').value.trim().toLowerCase();
   const lista = document.getElementById('listaIngressos');
@@ -755,7 +784,9 @@ function renderLista(){
     lista.innerHTML = `<div class="empty"><div class="display">Nenhum ingresso ainda</div>Venda o primeiro ingresso na aba Vender.</div>`;
     return;
   }
-  lista.innerHTML = filtrados.map(t=>`
+  lista.innerHTML = filtrados.map(t=>{
+    const falta = t.cortesia ? 0 : restanteTicket(t);
+    return `
     <div class="stub cat-${t.cat}" data-id="${t.id}">
       <div class="spine"></div>
       <div class="body">
@@ -771,9 +802,14 @@ function renderLista(){
           <div class="price">${t.cortesia ? '🎁 Cortesia' : fmtBRL(t.preco)}</div>
           <div class="status ${t.checkedIn?'entrou':'pendente'}">${t.checkedIn?'Entrou':'Pendente'}</div>
         </div>
+        ${falta > 0 ? `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);">
+          <span style="font-size:12px; color:var(--rose);">💰 Falta pagar: ${fmtBRL(falta)}</span>
+          <button class="btn secondary" style="width:auto; margin:0; padding:8px 12px; font-size:12px;" onclick="event.stopPropagation(); registrarPagamentoIngresso('${t.id}')">Registrar pagamento</button>
+        </div>` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   lista.querySelectorAll('.stub').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -786,13 +822,15 @@ function renderLista(){
 // ---------- resumo ----------
 function renderResumo(){
   const totalIngressos = tickets.length;
-  const totalReceita = tickets.reduce((s,t)=>s+t.preco,0);
+  const totalReceita = tickets.reduce((s,t)=>s+totalPagoTicket(t),0);
+  const totalAReceberIngressos = tickets.reduce((s,t)=>s+restanteTicket(t),0);
   const totalEntraram = tickets.filter(t=>t.checkedIn).length;
   const totalCortesias = tickets.filter(t=>t.cortesia).length;
 
   document.getElementById('statGrid').innerHTML = `
     <div class="stat"><div class="n">${totalIngressos}</div><div class="l">ingressos vendidos</div></div>
-    <div class="stat"><div class="n">${fmtBRL(totalReceita)}</div><div class="l">receita total</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalReceita)}</div><div class="l">já recebido</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalAReceberIngressos)}</div><div class="l">falta receber (ingressos)</div></div>
     <div class="stat"><div class="n">${totalEntraram}</div><div class="l">já entraram</div></div>
     <div class="stat"><div class="n">${totalIngressos-totalEntraram}</div><div class="l">ainda não entraram</div></div>
     <div class="stat"><div class="n">${totalCortesias}</div><div class="l">🎁 cortesias distribuídas</div></div>
