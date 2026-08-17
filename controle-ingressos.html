@@ -513,7 +513,50 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// ---------- migração automática: recupera dados salvos antes do Firebase (localStorage deste celular) ----------
+function migrarDadosAntigos(){
+  const legacyTickets = localStorage.getItem('controle-ingressos:tickets');
+  const legacyCasa = localStorage.getItem('controle-ingressos:casa');
+  const legacyConfig = localStorage.getItem('controle-ingressos:config');
+  if(!legacyTickets && !legacyCasa && !legacyConfig) return;
+
+  Promise.all([
+    db.ref('tickets').once('value'),
+    db.ref('casa').once('value'),
+    db.ref('config').once('value')
+  ]).then(([tSnap, cSnap, cfgSnap])=>{
+    const remoteTickets = tSnap.val() || [];
+    const remoteCasa = cSnap.val() || [];
+    let importou = false;
+
+    if(remoteTickets.length===0 && legacyTickets){
+      try{
+        const parsed = JSON.parse(legacyTickets);
+        if(parsed.length>0){ db.ref('tickets').set(parsed); importou = true; }
+      }catch(e){}
+    }
+    if(remoteCasa.length===0 && legacyCasa){
+      try{
+        const parsed = JSON.parse(legacyCasa);
+        if(parsed.length>0){ db.ref('casa').set(parsed); importou = true; }
+      }catch(e){}
+    }
+    if(!cfgSnap.val() && legacyConfig){
+      try{ db.ref('config').set(JSON.parse(legacyConfig)); }catch(e){}
+    }
+
+    if(importou){
+      alert('Encontramos dados salvos anteriormente neste celular e importamos automaticamente para a nuvem! 🎉');
+    }
+    // limpa as chaves antigas pra não tentar importar de novo nas próximas vezes
+    localStorage.removeItem('controle-ingressos:tickets');
+    localStorage.removeItem('controle-ingressos:casa');
+    localStorage.removeItem('controle-ingressos:config');
+  }).catch(()=>{});
+}
+
 function loadAll(){
+  migrarDadosAntigos();
   db.ref('config').on('value', snap=>{
     const val = snap.val();
     if(val){
