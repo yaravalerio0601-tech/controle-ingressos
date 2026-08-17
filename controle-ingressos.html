@@ -460,6 +460,8 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <script>
 (function(){
 
@@ -497,38 +499,51 @@ let filtroAtual = 'todos';
 let html5QrCode = null;
 
 const CASA_PRAZOS = { p1:'Até 25/08', p2:'2º Prazo · 10/09', ultimo:'Último Prazo' };
-const KEY_CASA = 'controle-ingressos:casa';
-const KEY_CFG = 'controle-ingressos:config';
-const KEY_TICKETS = 'controle-ingressos:tickets';
 
-// ---------- storage (localStorage — funciona no site publicado, salva neste navegador/celular) ----------
+// ---------- Firebase Realtime Database — sincroniza entre todos os celulares em tempo real ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyB1oV1qWDLVOWwbXTQMwlgaf6yPdtq5520",
+  authDomain: "controle-ingressos.firebaseapp.com",
+  databaseURL: "https://controle-ingressos-default-rtdb.firebaseio.com",
+  projectId: "controle-ingressos",
+  storageBucket: "controle-ingressos.firebasestorage.app",
+  messagingSenderId: "780443709821",
+  appId: "1:780443709821:web:c54e74629b971271fc5c14"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 function loadAll(){
-  try{
-    const c = localStorage.getItem(KEY_CFG);
-    if(c) config = Object.assign(config, JSON.parse(c));
-  }catch(e){}
-  try{
-    const t = localStorage.getItem(KEY_TICKETS);
-    if(t) tickets = JSON.parse(t);
-  }catch(e){}
-  try{
-    const h = localStorage.getItem(KEY_CASA);
-    if(h) casaRecords = JSON.parse(h);
-  }catch(e){}
-  document.getElementById('eventName').value = config.eventName;
-  document.getElementById('cfgDataEvento').value = config.eventDate;
-  document.getElementById('cfgLote1Ini').value = config.lote1Ini;
-  document.getElementById('cfgLote1Fim').value = config.lote1Fim;
-  renderAll();
+  db.ref('config').on('value', snap=>{
+    const val = snap.val();
+    if(val){
+      config = Object.assign(config, val);
+    }else{
+      db.ref('config').set(config);
+    }
+    document.getElementById('eventName').value = config.eventName;
+    document.getElementById('cfgDataEvento').value = config.eventDate;
+    document.getElementById('cfgLote1Ini').value = config.lote1Ini;
+    document.getElementById('cfgLote1Fim').value = config.lote1Fim;
+    renderAll();
+  });
+  db.ref('tickets').on('value', snap=>{
+    tickets = snap.val() || [];
+    renderAll();
+  });
+  db.ref('casa').on('value', snap=>{
+    casaRecords = snap.val() || [];
+    renderAll();
+  });
 }
 function saveConfig(){
-  try{ localStorage.setItem(KEY_CFG, JSON.stringify(config)); }catch(e){}
+  try{ db.ref('config').set(config); }catch(e){}
 }
 function saveTickets(){
-  try{ localStorage.setItem(KEY_TICKETS, JSON.stringify(tickets)); }catch(e){}
+  try{ db.ref('tickets').set(tickets); }catch(e){}
 }
 function saveCasa(){
-  try{ localStorage.setItem(KEY_CASA, JSON.stringify(casaRecords)); }catch(e){}
+  try{ db.ref('casa').set(casaRecords); }catch(e){}
 }
 
 // ---------- helpers ----------
