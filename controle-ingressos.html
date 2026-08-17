@@ -500,21 +500,20 @@ const CASA_PRAZOS = { p1:'Até 25/08', p2:'2º Prazo · 10/09', ultimo:'Último 
 const KEY_CASA = 'controle-ingressos:casa';
 const KEY_CFG = 'controle-ingressos:config';
 const KEY_TICKETS = 'controle-ingressos:tickets';
-const SHARED = true; // dados visíveis para quem acessar este mesmo artifact (útil na entrada do evento)
 
-// ---------- storage ----------
-async function loadAll(){
+// ---------- storage (localStorage — funciona no site publicado, salva neste navegador/celular) ----------
+function loadAll(){
   try{
-    const c = await window.storage.get(KEY_CFG, SHARED);
-    if(c && c.value) config = Object.assign(config, JSON.parse(c.value));
+    const c = localStorage.getItem(KEY_CFG);
+    if(c) config = Object.assign(config, JSON.parse(c));
   }catch(e){}
   try{
-    const t = await window.storage.get(KEY_TICKETS, SHARED);
-    if(t && t.value) tickets = JSON.parse(t.value);
+    const t = localStorage.getItem(KEY_TICKETS);
+    if(t) tickets = JSON.parse(t);
   }catch(e){}
   try{
-    const h = await window.storage.get(KEY_CASA, SHARED);
-    if(h && h.value) casaRecords = JSON.parse(h.value);
+    const h = localStorage.getItem(KEY_CASA);
+    if(h) casaRecords = JSON.parse(h);
   }catch(e){}
   document.getElementById('eventName').value = config.eventName;
   document.getElementById('cfgDataEvento').value = config.eventDate;
@@ -522,14 +521,14 @@ async function loadAll(){
   document.getElementById('cfgLote1Fim').value = config.lote1Fim;
   renderAll();
 }
-async function saveConfig(){
-  try{ await window.storage.set(KEY_CFG, JSON.stringify(config), SHARED); }catch(e){}
+function saveConfig(){
+  try{ localStorage.setItem(KEY_CFG, JSON.stringify(config)); }catch(e){}
 }
-async function saveTickets(){
-  try{ await window.storage.set(KEY_TICKETS, JSON.stringify(tickets), SHARED); }catch(e){}
+function saveTickets(){
+  try{ localStorage.setItem(KEY_TICKETS, JSON.stringify(tickets)); }catch(e){}
 }
-async function saveCasa(){
-  try{ await window.storage.set(KEY_CASA, JSON.stringify(casaRecords), SHARED); }catch(e){}
+function saveCasa(){
+  try{ localStorage.setItem(KEY_CASA, JSON.stringify(casaRecords)); }catch(e){}
 }
 
 // ---------- helpers ----------
