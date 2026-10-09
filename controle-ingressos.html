@@ -76,7 +76,7 @@
   }
   .tabbar button{
     flex:1; padding:11px 2px 9px; background:none; border:none;
-    color:var(--muted); font-family:'Work Sans',sans-serif; font-size:10.5px;
+    color:var(--muted); font-family:'Work Sans',sans-serif; font-size:10px; min-width:0;
     display:flex; flex-direction:column; align-items:center; gap:3px;
     cursor:pointer;
   }
@@ -221,9 +221,25 @@
     #printArea, #printArea *{ visibility:visible; }
     #printArea{ position:absolute; top:0; left:0; width:100%; }
   }
+  /* indicações */
+  .stub.cat-ind .spine{ background:#9b7be0; }
+  .stub.cat-ind .tag{ background:#2a2147; color:#b9a2f5; }
+  .status.saldo{ background:var(--gold-d); color:var(--gold); }
+  .bar{ height:6px; background:var(--surface-2); border-radius:6px; overflow:hidden; margin-top:10px; }
+  .bar > div{ height:100%; background:linear-gradient(90deg,var(--gold),#b98a3e); }
+  .ind-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .ind-actions .btn{ margin:0; padding:10px 6px; font-size:13px; }
+  #dbBanner{ display:none; position:sticky; top:0; z-index:200; background:#5a1f2b; color:#ffd9de;
+    padding:10px 14px; font-size:13px; text-align:center; border-bottom:1px solid var(--rose); }
+  .saldo-big{ font-family:'Fraunces',serif; font-size:34px; font-weight:700; color:var(--gold); text-align:center; margin:6px 0 2px; }
+  .kv{ display:flex; justify-content:space-between; font-size:14px; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .kv:last-child{ border-bottom:none; }
+  .kv span:first-child{ color:var(--muted); }
 </style>
 </head>
 <body>
+
+<div id="dbBanner"></div>
 
 <header class="top">
   <div class="eyebrow">Controle de Entrada</div>
@@ -361,6 +377,36 @@
     <div id="listaCasa"></div>
   </section>
 
+  <!-- INDICAÇÕES -->
+  <section class="view" id="view-indicacoes">
+    <div class="stat-grid" id="statGridInd"></div>
+    <button class="btn" id="btnScanInd" style="margin-top:0; margin-bottom:16px;">📷 Escanear QR e registrar consumo</button>
+
+    <div class="card">
+      <h3 class="display" style="margin:0 0 12px;font-size:17px;">Cadastrar indicação</h3>
+      <label>Nome completo</label>
+      <input type="text" id="iNome" placeholder="Quem está indicando" />
+
+      <label>WhatsApp (opcional)</label>
+      <input type="text" id="iWhats" class="mono" placeholder="Ex: 27 99999-9999" inputmode="tel" />
+
+      <label>Valor por indicação (R$)</label>
+      <input type="text" id="iValor" class="mono" value="20" inputmode="decimal" />
+
+      <label>Quantas indicações já fez</label>
+      <input type="text" id="iQtd" class="mono" value="0" inputmode="numeric" />
+
+      <div class="price-row">
+        <div class="lbl">Crédito inicial para consumo</div>
+        <div class="val" id="iPreview">R$ 0,00</div>
+      </div>
+      <button class="btn" id="btnCadInd">Cadastrar e gerar QR Code</button>
+    </div>
+
+    <input type="text" class="search" id="buscaInd" placeholder="Buscar por nome ou código..." />
+    <div id="listaInd"></div>
+  </section>
+
   <!-- RESUMO -->
   <section class="view" id="view-resumo">
     <div class="stat-grid" id="statGrid"></div>
@@ -378,6 +424,7 @@
       <input type="date" id="cfgLote1Fim" />
       <button class="btn secondary" id="btnSalvarCfg">Salvar configuração</button>
     </div>
+    <button class="btn secondary" id="btnBackup" style="margin-bottom:10px;">Baixar backup dos dados (arquivo)</button>
     <button class="btn danger" id="btnLimparTudo">Apagar todos os dados</button>
   </section>
 
@@ -388,6 +435,7 @@
   <button class="tab-btn" data-view="ingressos"><span class="ic">📋</span>Ingressos</button>
   <button class="tab-btn" data-view="checkin"><span class="ic">✅</span>Check-in</button>
   <button class="tab-btn" data-view="casa"><span class="ic">🏠</span>Casa</button>
+  <button class="tab-btn" data-view="indicacoes"><span class="ic">🤝</span>Indicações</button>
   <button class="tab-btn" data-view="resumo"><span class="ic">📊</span>Resumo</button>
 </div>
 
@@ -425,6 +473,74 @@
     <h3 class="display" style="margin:0 0 12px;">Editar valores da Casa</h3>
     <div id="formPrecosCasa"></div>
     <button class="btn" id="btnSalvarPrecosCasa">Salvar valores</button>
+  </div>
+</div>
+
+<!-- MODAL: QR da indicação -->
+<div class="overlay hidden" id="modalQrInd">
+  <div class="modal">
+    <div class="close"><button id="fecharModalQrInd">✕</button></div>
+    <div class="ticket-full cat-solteiro" id="indTicketBox"></div>
+    <button class="btn" id="btnWhatsQrInd" style="margin-top:16px;">Enviar pelo WhatsApp da pessoa</button>
+    <button class="btn secondary" id="btnBaixarQrInd" style="margin-top:10px;">Baixar imagem do QR Code</button>
+    <p id="qrIndHint" style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px;"></p>
+  </div>
+</div>
+
+<!-- MODAL: scanner de indicação -->
+<div class="overlay hidden" id="modalScanInd">
+  <div class="modal">
+    <div class="close"><button id="fecharScanInd">✕</button></div>
+    <h3 class="display" style="margin:0 0 6px;">Escanear QR de indicação</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 10px;">Aponte a câmera para o QR Code da pessoa.</p>
+    <div id="qrReaderInd" style="width:100%;border-radius:12px;overflow:hidden;"></div>
+  </div>
+</div>
+
+<!-- MODAL: consumo -->
+<div class="overlay hidden" id="modalConsumo">
+  <div class="modal">
+    <div class="close"><button id="fecharConsumo">✕</button></div>
+    <div id="kForm">
+      <h3 class="display" id="kNome" style="margin:0 0 10px;font-size:22px;"></h3>
+      <div class="kv"><span>Crédito total</span><span id="kCredito"></span></div>
+      <div class="kv"><span>Já consumido</span><span id="kGasto"></span></div>
+      <div class="saldo-big" id="kSaldo"></div>
+      <div style="text-align:center;color:var(--muted);font-size:12px;margin-bottom:8px;">saldo disponível</div>
+
+      <label>Valor gasto agora (R$)</label>
+      <input type="text" id="kValor" class="mono" placeholder="Ex: 12,50" inputmode="decimal" />
+      <button class="btn" id="kConfirmar">Confirmar consumo</button>
+      <button class="btn secondary" id="kTudo" style="margin-top:10px;">Usar o saldo todo</button>
+
+      <div id="kHist" style="margin-top:16px;font-size:12px;color:var(--muted);"></div>
+      <button class="btn secondary" id="kDesfazer" style="margin-top:10px;">Desfazer último consumo</button>
+    </div>
+    <div id="kResultado" style="display:none;text-align:center;">
+      <div id="kResTitulo" class="display" style="font-size:22px;margin:10px 0;"></div>
+      <div class="saldo-big" id="kResSaldo"></div>
+      <div id="kResSub" style="color:var(--muted);font-size:13px;margin-bottom:6px;"></div>
+      <button class="btn" id="kProximo">📷 Escanear próximo</button>
+      <button class="btn secondary" id="kFechar" style="margin-top:10px;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: editar indicação -->
+<div class="overlay hidden" id="modalEditarInd">
+  <div class="modal">
+    <div class="close"><button id="fecharModalEditarInd">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar indicação</h3>
+    <label>Nome completo</label>
+    <input type="text" id="eiNome" />
+    <label>WhatsApp</label>
+    <input type="text" id="eiWhats" class="mono" inputmode="tel" />
+    <label>Valor por indicação (R$)</label>
+    <input type="text" id="eiValor" class="mono" inputmode="decimal" />
+    <p id="eiResumo" style="color:var(--muted);font-size:12px;margin-top:8px;"></p>
+    <button class="btn" id="btnSalvarInd" style="margin-top:12px;">Salvar alterações</button>
+    <button class="btn secondary" id="btnRemoverIndicacao" style="margin-top:10px;">− Remover 1 indicação</button>
+    <button class="btn danger" id="btnExcluirInd" style="margin-top:10px;">Excluir este cadastro</button>
   </div>
 </div>
 
@@ -503,6 +619,15 @@ let html5QrCode = null;
 
 const CASA_PRAZOS = { p1:'Até 25/08', p2:'2º Prazo · 10/09', ultimo:'Último Prazo' };
 
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+// o Firebase não guarda listas vazias e devolve listas "ralas" como objeto: normaliza sempre
+function toArr(v){
+  if(!v) return [];
+  return Array.isArray(v) ? v.filter(x => x != null) : Object.values(v);
+}
+
 // ---------- Firebase Realtime Database — sincroniza entre todos os celulares em tempo real ----------
 const firebaseConfig = {
   apiKey: "AIzaSyB1oV1qWDLVOWwbXTQMwlgaf6yPdtq5520",
@@ -558,39 +683,66 @@ function migrarDadosAntigos(){
   }).catch(()=>{});
 }
 
+function erroBanco(e){
+  console.error(e);
+  const b = document.getElementById('dbBanner');
+  const negado = e && (e.code === 'PERMISSION_DENIED' || /permission_denied/i.test(String(e.message || e)));
+  b.textContent = negado
+    ? '⚠️ O banco de dados bloqueou o acesso (regras do Firebase vencidas). Nada está sendo carregado nem salvo até corrigir.'
+    : '⚠️ Problema de conexão com o banco de dados. Confira a internet — os dados podem não estar sendo salvos.';
+  b.style.display = 'block';
+}
+function bancoOk(){ document.getElementById('dbBanner').style.display = 'none'; }
+
+function salvarNo(path, data){
+  const aviso = () => alert('⚠️ NÃO FOI POSSÍVEL SALVAR. O banco de dados recusou a gravação — este último cadastro pode se perder ao fechar o app.');
+  try{
+    return db.ref(path).set(data).catch(e => { erroBanco(e); aviso(); });
+  }catch(e){
+    erroBanco(e); aviso();
+    return Promise.resolve();
+  }
+}
+
 function loadAll(){
   migrarDadosAntigos();
   db.ref('config').on('value', snap=>{
+    bancoOk();
     const val = snap.val();
     if(val){
       config = Object.assign(config, val);
     }else{
-      db.ref('config').set(config);
+      salvarNo('config', config);
     }
     document.getElementById('eventName').value = config.eventName;
     document.getElementById('cfgDataEvento').value = config.eventDate;
     document.getElementById('cfgLote1Ini').value = config.lote1Ini;
     document.getElementById('cfgLote1Fim').value = config.lote1Fim;
     renderAll();
-  });
+  }, erroBanco);
   db.ref('tickets').on('value', snap=>{
-    tickets = snap.val() || [];
+    bancoOk();
+    tickets = toArr(snap.val()).map(t=>{
+      if(t.pagamentos !== undefined) t.pagamentos = toArr(t.pagamentos);
+      return t;
+    });
     renderAll();
-  });
+  }, erroBanco);
   db.ref('casa').on('value', snap=>{
-    casaRecords = snap.val() || [];
+    bancoOk();
+    casaRecords = toArr(snap.val()).map(r=>{ r.pagamentos = toArr(r.pagamentos); return r; });
     renderAll();
-  });
+  }, erroBanco);
+  db.ref('indicacoes').on('value', snap=>{
+    bancoOk();
+    indicacoes = toArr(snap.val()).map(normInd)
+      .sort((a,b)=>String(b.criadoEm||'').localeCompare(String(a.criadoEm||'')));
+    renderAll();
+  }, erroBanco);
 }
-function saveConfig(){
-  try{ db.ref('config').set(config); }catch(e){}
-}
-function saveTickets(){
-  try{ db.ref('tickets').set(tickets); }catch(e){}
-}
-function saveCasa(){
-  try{ db.ref('casa').set(casaRecords); }catch(e){}
-}
+function saveConfig(){ return salvarNo('config', config); }
+function saveTickets(){ return salvarNo('tickets', tickets); }
+function saveCasa(){ return salvarNo('casa', casaRecords); }
 
 // ---------- helpers ----------
 function fmtBRL(v){ return 'R$ ' + Number(v).toFixed(0); }
@@ -682,8 +834,8 @@ function showTicketModal(t){
   box.className = 'ticket-full cat-' + t.cat;
   box.innerHTML = `
     <div class="catband">${CATS[t.cat].label} · ${LOTES[t.lote]}</div>
-    <h2 class="display">${t.nome}</h2>
-    <div class="evt">${config.eventName}${config.eventDate ? ' · ' + config.eventDate.split('-').reverse().join('/') : ''}</div>
+    <h2 class="display">${esc(t.nome)}</h2>
+    <div class="evt">${esc(config.eventName)}${config.eventDate ? ' · ' + config.eventDate.split('-').reverse().join('/') : ''}</div>
     <div class="qrbox" id="qrRender"></div>
     <div class="idline">${t.id}</div>
     <div class="perfline"></div>
@@ -792,8 +944,8 @@ function renderLista(){
       <div class="body">
         <div class="row1">
           <div>
-            <div class="name">${t.nome}</div>
-            <div class="meta">${LOTES[t.lote]} · ${t.pagamento || 'pagamento não informado'}${t.whatsapp ? ' · 📱 ' + t.whatsapp : ''}</div>
+            <div class="name">${esc(t.nome)}</div>
+            <div class="meta">${LOTES[t.lote]} · ${esc(t.pagamento || 'pagamento não informado')}${t.whatsapp ? ' · 📱 ' + esc(t.whatsapp) : ''}</div>
           </div>
           <div class="tag">${CATS[t.cat].label}</div>
         </div>
@@ -858,6 +1010,7 @@ function renderAll(){
   renderTabelaPrecosCasa();
   renderListaCasa();
   renderCaixaCasa();
+  renderInd();
   document.getElementById('eventDateSub').textContent = config.eventDate
     ? 'Evento em ' + config.eventDate.split('-').reverse().join('/')
     : 'defina a data do evento em Resumo → Configurar';
@@ -891,7 +1044,7 @@ function renderTabelaPrecosCasa(){
   tb.innerHTML = html;
 }
 
-function totalPago(r){ return r.pagamentos.reduce((s,p)=>s+p.valor,0); }
+function totalPago(r){ return (r.pagamentos || []).reduce((s,p)=>s+p.valor,0); }
 function restante(r){ return Math.max(0, r.valorTotal - totalPago(r)); }
 
 async function gerarCasa(){
@@ -920,6 +1073,7 @@ async function registrarPagamento(id){
   if(v===null) return;
   const valor = parseFloat(v.replace(',','.'));
   if(!valor || valor<=0){ alert('Valor inválido.'); return; }
+  r.pagamentos = r.pagamentos || [];
   r.pagamentos.push({ valor, data:new Date().toISOString() });
   await saveCasa();
   renderAll();
@@ -944,7 +1098,7 @@ function renderListaCasa(){
       <div class="body">
         <div class="row1">
           <div>
-            <div class="name">${r.nome}</div>
+            <div class="name">${esc(r.nome)}</div>
             <div class="meta">${CASA_PRAZOS[r.prazo]} · Total ${fmtBRL(r.valorTotal)}</div>
           </div>
           <div class="tag">${CATS[r.cat].label}</div>
@@ -1050,23 +1204,373 @@ document.getElementById('btnExcluirCasa').addEventListener('click', async ()=>{
   editandoCasaId = null;
 });
 
+// ---------- INDICAÇÕES: crédito por indicação, QR Code e consumo ----------
+let indicacoes = [];
+let consumoId = null;
+let editandoIndId = null;
+let qrIndId = null;
+let indScanner = null;
+let indScanLock = false;
+
+function round2(v){ return Math.round((Number(v) || 0) * 100) / 100; }
+function fmtMoney(v){ return 'R$ ' + round2(v).toFixed(2).replace('.', ','); }
+function parseValor(s){
+  const n = parseFloat(String(s == null ? '' : s).replace(/\s/g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+function normInd(r){
+  r.indicados = toArr(r.indicados);
+  r.gastos = toArr(r.gastos);
+  r.valorUnit = Number(r.valorUnit) || 0;
+  return r;
+}
+function creditoInd(r){ return round2(r.indicados.length * r.valorUnit); }
+function gastoInd(r){ return round2(r.gastos.reduce((s,g)=>s+(Number(g.valor)||0),0)); }
+function saldoInd(r){ return Math.max(0, round2(creditoInd(r) - gastoInd(r))); }
+function getInd(id){
+  const k = String(id).trim().toLowerCase();
+  return indicacoes.find(x => String(x.id).toLowerCase() === k);
+}
+function nextIndId(){
+  const max = indicacoes.reduce((m,r)=>Math.max(m, parseInt(String(r.id).replace(/\D/g,''),10) || 0), 0);
+  return 'IND-' + String(max + 1).padStart(4, '0');
+}
+function falhaIndicacao(e){
+  erroBanco(e);
+  alert('⚠️ Não foi possível salvar. O banco de dados recusou a gravação.');
+}
+
+function atualizarPreviewInd(){
+  const q = parseInt(document.getElementById('iQtd').value, 10) || 0;
+  const v = parseValor(document.getElementById('iValor').value);
+  document.getElementById('iPreview').textContent = fmtMoney(q * v);
+}
+
+async function cadastrarInd(){
+  const nome = document.getElementById('iNome').value.trim();
+  if(!nome){ alert('Digite o nome da pessoa.'); return; }
+  const valorUnit = parseValor(document.getElementById('iValor').value);
+  if(valorUnit <= 0){ alert('Informe o valor por indicação (ex: 20).'); return; }
+  const qtd = Math.max(0, parseInt(document.getElementById('iQtd').value, 10) || 0);
+  const whatsapp = document.getElementById('iWhats').value.trim();
+  const agora = new Date().toISOString();
+  const id = nextIndId();
+  const rec = { id, nome, whatsapp, valorUnit, criadoEm: agora };
+  if(qtd > 0) rec.indicados = Array.from({length: qtd}, () => ({ nome:'', data: agora }));
+  try{
+    const res = await db.ref('indicacoes/' + id).transaction(cur => cur ? undefined : rec);
+    if(!res.committed){ alert('Esse código já foi usado por outro celular agora. Tente cadastrar de novo.'); return; }
+  }catch(e){ falhaIndicacao(e); return; }
+  document.getElementById('iNome').value = '';
+  document.getElementById('iWhats').value = '';
+  document.getElementById('iQtd').value = '0';
+  atualizarPreviewInd();
+  abrirQrInd(id, normInd(Object.assign({}, rec)));
+}
+
+function renderInd(){
+  const q = (document.getElementById('buscaInd').value || '').trim().toLowerCase();
+  const credito = indicacoes.reduce((s,r)=>s+creditoInd(r),0);
+  const gasto = indicacoes.reduce((s,r)=>s+gastoInd(r),0);
+  document.getElementById('statGridInd').innerHTML = `
+    <div class="stat"><div class="n">${indicacoes.length}</div><div class="l">pessoas cadastradas</div></div>
+    <div class="stat"><div class="n">${fmtMoney(credito)}</div><div class="l">crédito total gerado</div></div>
+    <div class="stat"><div class="n">${fmtMoney(gasto)}</div><div class="l">já consumido</div></div>
+    <div class="stat"><div class="n">${fmtMoney(credito - gasto)}</div><div class="l">saldo em aberto</div></div>
+  `;
+  const lista = document.getElementById('listaInd');
+  const filtrados = indicacoes.filter(r => !q || String(r.nome).toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q));
+  if(filtrados.length === 0){
+    lista.innerHTML = `<div class="empty"><div class="display">Nenhuma indicação cadastrada</div>Cadastre a primeira pessoa acima.</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(r=>{
+    const cred = creditoInd(r), saldo = saldoInd(r);
+    const pct = cred > 0 ? Math.max(0, Math.min(100, saldo / cred * 100)) : 0;
+    const id = esc(r.id);
+    return `
+    <div class="stub cat-ind">
+      <div class="spine"></div>
+      <div class="body">
+        <div class="row1">
+          <div>
+            <div class="name">${esc(r.nome)}</div>
+            <div class="meta">${r.indicados.length} indicação(ões) × ${fmtMoney(r.valorUnit)}${r.whatsapp ? ' · 📱 ' + esc(r.whatsapp) : ''}</div>
+          </div>
+          <div class="tag">INDICAÇÃO</div>
+        </div>
+        <div class="foot">
+          <div class="id mono">${id}</div>
+          <div class="price">Crédito ${fmtMoney(cred)}</div>
+          <div class="status ${saldo > 0 ? 'saldo' : 'entrou'}">${saldo > 0 ? 'Saldo ' + fmtMoney(saldo) : 'Zerado'}</div>
+        </div>
+        <div class="bar"><div style="width:${pct}%"></div></div>
+        <div class="ind-actions">
+          <button class="btn secondary" onclick="addIndicacao('${id}')">+ Indicação</button>
+          <button class="btn secondary" onclick="abrirConsumo('${id}')">Consumo</button>
+          <button class="btn secondary" onclick="abrirQrInd('${id}')">QR Code</button>
+          <button class="btn secondary" onclick="abrirEdicaoInd('${id}')">Editar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addIndicacao(id){
+  const r = getInd(id); if(!r) return;
+  const nomeInd = prompt(`Nova indicação de ${r.nome} (+${fmtMoney(r.valorUnit)} de crédito).\nNome de quem foi indicado (opcional):`);
+  if(nomeInd === null) return;
+  try{
+    await db.ref('indicacoes/' + r.id + '/indicados').transaction(cur => {
+      const a = toArr(cur);
+      a.push({ nome: nomeInd.trim(), data: new Date().toISOString() });
+      return a;
+    });
+  }catch(e){ falhaIndicacao(e); }
+}
+
+// ---- QR Code da pessoa ----
+function abrirQrInd(id, fallback){
+  const r = getInd(id) || fallback; if(!r) return;
+  qrIndId = r.id;
+  document.getElementById('indTicketBox').innerHTML = `
+    <div class="catband">Crédito de indicação</div>
+    <h2 class="display">${esc(r.nome)}</h2>
+    <div class="evt">${esc(config.eventName)}</div>
+    <div class="qrbox" id="qrRenderInd"></div>
+    <div class="idline">${esc(r.id)}</div>
+    <div class="perfline"></div>
+    <div style="font-size:13px;color:var(--muted);">Apresente este QR Code para usar seu crédito</div>`;
+  gerarQRCode(document.getElementById('qrRenderInd'), r.id);
+  document.getElementById('btnWhatsQrInd').style.display = r.whatsapp ? 'block' : 'none';
+  document.getElementById('qrIndHint').textContent = '';
+  document.getElementById('modalQrInd').classList.remove('hidden');
+}
+window.abrirQrInd = abrirQrInd;
+
+async function baixarQrInd(){
+  const r = getInd(qrIndId); if(!r) return;
+  const canvas = await html2canvas(document.getElementById('indTicketBox'), { backgroundColor:'#1e1733', scale:2 });
+  const link = document.createElement('a');
+  link.download = 'credito-' + r.id + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+async function whatsQrInd(){
+  const r = getInd(qrIndId); if(!r || !r.whatsapp) return;
+  await baixarQrInd();
+  const msg = encodeURIComponent(
+    `Oi, ${r.nome}! 🎉 Você tem ${fmtMoney(saldoInd(r))} de crédito de indicação para usar em ${config.eventName}.\n` +
+    `Código: ${r.id}\n\nAnexe a imagem do QR Code que acabou de baixar aqui na conversa. Apresente o QR na hora de consumir!`
+  );
+  window.open(`https://wa.me/${normalizarWhats(r.whatsapp)}?text=${msg}`, '_blank');
+  document.getElementById('qrIndHint').textContent = 'Imagem baixada e WhatsApp aberto — agora é só anexar a imagem na conversa.';
+}
+
+// ---- Consumo (scanner + baixa de saldo) ----
+function abrirConsumo(id){
+  const r = getInd(id);
+  if(!r){ alert('Indicação não encontrada: ' + id); return; }
+  consumoId = r.id;
+  document.getElementById('kForm').style.display = 'block';
+  document.getElementById('kResultado').style.display = 'none';
+  document.getElementById('kValor').value = '';
+  renderConsumo();
+  document.getElementById('modalConsumo').classList.remove('hidden');
+  setTimeout(()=>{ try{ document.getElementById('kValor').focus(); }catch(e){} }, 200);
+}
+window.abrirConsumo = abrirConsumo;
+
+function renderConsumo(){
+  const r = getInd(consumoId); if(!r) return;
+  document.getElementById('kNome').textContent = r.nome;
+  document.getElementById('kCredito').textContent = fmtMoney(creditoInd(r));
+  document.getElementById('kGasto').textContent = fmtMoney(gastoInd(r));
+  const saldo = saldoInd(r);
+  const elSaldo = document.getElementById('kSaldo');
+  elSaldo.textContent = fmtMoney(saldo);
+  elSaldo.style.color = saldo > 0 ? '' : 'var(--rose)';
+  const ult = r.gastos.slice(-5).reverse();
+  document.getElementById('kHist').innerHTML = ult.length
+    ? '<div style="margin-bottom:4px;">Últimos consumos</div>' + ult.map(g =>
+        `<div class="kv"><span>${new Date(g.data).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</span><span>- ${fmtMoney(g.valor)}</span></div>`).join('')
+    : '';
+  document.getElementById('kDesfazer').style.display = r.gastos.length ? 'block' : 'none';
+  document.getElementById('kConfirmar').disabled = saldo <= 0;
+  document.getElementById('kTudo').disabled = saldo <= 0;
+}
+
+async function confirmarConsumo(){
+  const r = getInd(consumoId); if(!r) return;
+  const valor = round2(parseValor(document.getElementById('kValor').value));
+  if(valor <= 0){ alert('Digite o valor gasto.'); return; }
+  const saldoAntes = saldoInd(r);
+  if(valor > saldoAntes + 0.001){
+    alert(`Saldo insuficiente.\nSaldo atual: ${fmtMoney(saldoAntes)}\nValor informado: ${fmtMoney(valor)}`);
+    return;
+  }
+  const cred = creditoInd(r);
+  try{
+    const res = await db.ref('indicacoes/' + r.id + '/gastos').transaction(cur => {
+      const a = toArr(cur);
+      const ja = round2(a.reduce((s,g)=>s+(Number(g.valor)||0),0));
+      if(round2(ja + valor) > cred + 0.001) return; // outro celular já consumiu: aborta
+      a.push({ valor, data: new Date().toISOString() });
+      return a;
+    });
+    if(!res.committed){
+      alert('Saldo insuficiente — outro celular pode ter registrado um consumo agora. Reabra para ver o saldo atual.');
+      return;
+    }
+    const total = round2(toArr(res.snapshot.val()).reduce((s,g)=>s+(Number(g.valor)||0),0));
+    const novo = Math.max(0, round2(cred - total));
+    document.getElementById('kForm').style.display = 'none';
+    document.getElementById('kResultado').style.display = 'block';
+    document.getElementById('kResTitulo').textContent = '✅ Consumo registrado — ' + fmtMoney(valor);
+    document.getElementById('kResSaldo').textContent = novo > 0 ? fmtMoney(novo) : 'Saldo zerado';
+    document.getElementById('kResSub').textContent = novo > 0 ? 'saldo restante de ' + r.nome : r.nome + ' usou todo o crédito';
+  }catch(e){ falhaIndicacao(e); }
+}
+
+async function desfazerConsumo(){
+  const r = getInd(consumoId); if(!r || !r.gastos.length) return;
+  const ultimo = r.gastos[r.gastos.length - 1];
+  if(!confirm(`Desfazer o último consumo de ${fmtMoney(ultimo.valor)}?`)) return;
+  try{
+    await db.ref('indicacoes/' + r.id + '/gastos').transaction(cur => {
+      const a = toArr(cur);
+      a.pop();
+      return a.length ? a : null;
+    });
+  }catch(e){ falhaIndicacao(e); }
+}
+
+async function abrirScanInd(){
+  const box = document.getElementById('qrReaderInd');
+  box.innerHTML = '';
+  document.getElementById('modalScanInd').classList.remove('hidden');
+  if(typeof Html5Qrcode === 'undefined'){
+    box.innerHTML = '<p style="color:var(--muted);font-size:13px;">Câmera indisponível neste navegador. Use o botão "Consumo" no cartão da pessoa.</p>';
+    return;
+  }
+  if(html5QrCode){ try{ await html5QrCode.stop(); }catch(e){} }
+  indScanLock = false;
+  indScanner = new Html5Qrcode('qrReaderInd');
+  try{
+    await indScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, async (txt)=>{
+      if(indScanLock) return;
+      indScanLock = true;
+      await fecharScanInd();
+      const code = String(txt).trim();
+      if(!/^IND-/i.test(code)){ alert('Esse QR Code não é de crédito de indicação.'); return; }
+      abrirConsumo(code);
+    });
+  }catch(e){
+    box.innerHTML = '<p style="color:var(--muted);font-size:13px;">Não foi possível acessar a câmera. Use o botão "Consumo" no cartão da pessoa.</p>';
+  }
+}
+async function fecharScanInd(){
+  document.getElementById('modalScanInd').classList.add('hidden');
+  if(indScanner){
+    try{ await indScanner.stop(); }catch(e){}
+    try{ indScanner.clear(); }catch(e){}
+    indScanner = null;
+  }
+}
+function fecharConsumo(){
+  document.getElementById('modalConsumo').classList.add('hidden');
+  consumoId = null;
+}
+
+// ---- Editar cadastro ----
+function abrirEdicaoInd(id){
+  const r = getInd(id); if(!r) return;
+  editandoIndId = r.id;
+  document.getElementById('eiNome').value = r.nome;
+  document.getElementById('eiWhats').value = r.whatsapp || '';
+  document.getElementById('eiValor').value = r.valorUnit;
+  document.getElementById('eiResumo').textContent =
+    `${r.indicados.length} indicação(ões) · crédito ${fmtMoney(creditoInd(r))} · consumido ${fmtMoney(gastoInd(r))}. ` +
+    `Mudar o valor por indicação recalcula o crédito de todas as indicações.`;
+  document.getElementById('modalEditarInd').classList.remove('hidden');
+}
+window.abrirEdicaoInd = abrirEdicaoInd;
+
+async function salvarEdicaoInd(){
+  const r = getInd(editandoIndId); if(!r) return;
+  const nome = document.getElementById('eiNome').value.trim();
+  if(!nome){ alert('Digite o nome.'); return; }
+  const valorUnit = parseValor(document.getElementById('eiValor').value);
+  if(valorUnit <= 0){ alert('Informe um valor por indicação maior que zero.'); return; }
+  if(round2(r.indicados.length * valorUnit) < gastoInd(r)){
+    alert('Não dá pra salvar: o crédito ficaria menor do que o que já foi consumido.');
+    return;
+  }
+  try{
+    await db.ref('indicacoes/' + r.id).update({ nome, whatsapp: document.getElementById('eiWhats').value.trim(), valorUnit });
+    document.getElementById('modalEditarInd').classList.add('hidden');
+    editandoIndId = null;
+  }catch(e){ falhaIndicacao(e); }
+}
+async function removerUmaIndicacao(){
+  const r = getInd(editandoIndId); if(!r) return;
+  if(r.indicados.length <= 0){ alert('Essa pessoa não tem indicações para remover.'); return; }
+  if(round2((r.indicados.length - 1) * r.valorUnit) < gastoInd(r)){
+    alert('Não dá pra remover: o crédito ficaria menor do que o que já foi consumido.');
+    return;
+  }
+  try{
+    await db.ref('indicacoes/' + r.id + '/indicados').transaction(cur => {
+      const a = toArr(cur);
+      a.pop();
+      return a.length ? a : null;
+    });
+    document.getElementById('modalEditarInd').classList.add('hidden');
+    editandoIndId = null;
+  }catch(e){ falhaIndicacao(e); }
+}
+async function excluirInd(){
+  const r = getInd(editandoIndId); if(!r) return;
+  if(!confirm(`Excluir o cadastro de ${r.nome}? O crédito e o histórico de consumo serão apagados.`)) return;
+  try{
+    await db.ref('indicacoes/' + r.id).remove();
+    document.getElementById('modalEditarInd').classList.add('hidden');
+    editandoIndId = null;
+  }catch(e){ falhaIndicacao(e); }
+}
+
+function baixarBackup(){
+  const dados = { exportadoEm: new Date().toISOString(), config, tickets, casa: casaRecords, indicacoes };
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'backup-controle-ingressos-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+window.addIndicacao = addIndicacao;
+
 // ---------- check-in ----------
 function processarCodigo(codigo){
+  if(/^IND-/i.test(String(codigo).trim())){
+    if(document.getElementById('modalConsumo').classList.contains('hidden')) abrirConsumo(String(codigo).trim());
+    return;
+  }
   const res = document.getElementById('scanResultado');
   const t = tickets.find(x=>x.id.toLowerCase() === codigo.trim().toLowerCase());
   if(!t){
-    res.innerHTML = `<div class="scan-result scan-bad">Código não encontrado: ${codigo}</div>`;
+    res.innerHTML = `<div class="scan-result scan-bad">Código não encontrado: ${esc(codigo)}</div>`;
     return;
   }
   if(t.checkedIn){
-    res.innerHTML = `<div class="scan-result scan-used">⚠️ ${t.nome} (${t.id}) já entrou às ${new Date(t.checkinTime).toLocaleTimeString('pt-BR')}</div>`;
+    res.innerHTML = `<div class="scan-result scan-used">⚠️ ${esc(t.nome)} (${esc(t.id)}) já entrou às ${new Date(t.checkinTime).toLocaleTimeString('pt-BR')}</div>`;
     return;
   }
   t.checkedIn = true;
   t.checkinTime = new Date().toISOString();
   saveTickets();
   renderAll();
-  res.innerHTML = `<div class="scan-result scan-ok">✅ Entrada confirmada: ${t.nome} — ${CATS[t.cat].label}</div>`;
+  res.innerHTML = `<div class="scan-result scan-ok">✅ Entrada confirmada: ${esc(t.nome)} — ${CATS[t.cat].label}</div>`;
 }
 
 function startScanner(){
@@ -1221,6 +1725,32 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     }
   });
 });
+
+// ---- eventos: indicações ----
+document.getElementById('iQtd').addEventListener('input', atualizarPreviewInd);
+document.getElementById('iValor').addEventListener('input', atualizarPreviewInd);
+document.getElementById('btnCadInd').addEventListener('click', cadastrarInd);
+document.getElementById('buscaInd').addEventListener('input', renderInd);
+document.getElementById('btnScanInd').addEventListener('click', abrirScanInd);
+document.getElementById('fecharScanInd').addEventListener('click', fecharScanInd);
+document.getElementById('fecharModalQrInd').addEventListener('click', ()=>document.getElementById('modalQrInd').classList.add('hidden'));
+document.getElementById('btnBaixarQrInd').addEventListener('click', baixarQrInd);
+document.getElementById('btnWhatsQrInd').addEventListener('click', whatsQrInd);
+document.getElementById('kConfirmar').addEventListener('click', confirmarConsumo);
+document.getElementById('kValor').addEventListener('keydown', e=>{ if(e.key === 'Enter') confirmarConsumo(); });
+document.getElementById('kTudo').addEventListener('click', ()=>{
+  const r = getInd(consumoId); if(!r) return;
+  document.getElementById('kValor').value = String(saldoInd(r)).replace('.', ',');
+});
+document.getElementById('kDesfazer').addEventListener('click', desfazerConsumo);
+document.getElementById('fecharConsumo').addEventListener('click', fecharConsumo);
+document.getElementById('kFechar').addEventListener('click', fecharConsumo);
+document.getElementById('kProximo').addEventListener('click', ()=>{ fecharConsumo(); abrirScanInd(); });
+document.getElementById('fecharModalEditarInd').addEventListener('click', ()=>{ document.getElementById('modalEditarInd').classList.add('hidden'); editandoIndId = null; });
+document.getElementById('btnSalvarInd').addEventListener('click', salvarEdicaoInd);
+document.getElementById('btnRemoverIndicacao').addEventListener('click', removerUmaIndicacao);
+document.getElementById('btnExcluirInd').addEventListener('click', excluirInd);
+document.getElementById('btnBackup').addEventListener('click', baixarBackup);
 
 // ---------- init ----------
 selLote = sugerirLote();
