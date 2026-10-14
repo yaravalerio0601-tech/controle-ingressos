@@ -361,8 +361,15 @@
         <div class="val" id="valorTotalCasa">R$ 0</div>
       </div>
 
-      <label>Entrada paga agora</label>
-      <input type="text" id="cEntrada" class="mono" placeholder="Ex: 100" inputmode="decimal" />
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="cCortesia" style="width:auto; accent-color:var(--gold);" />
+        <span>Ingresso da casa de cortesia (sem cobrança)</span>
+      </label>
+
+      <div id="cEntradaBox">
+        <label>Entrada paga agora</label>
+        <input type="text" id="cEntrada" class="mono" placeholder="Ex: 100" inputmode="decimal" />
+      </div>
 
       <button class="btn" id="btnGerarCasa">Cadastrar na casa</button>
     </div>
@@ -566,6 +573,11 @@
       <button data-prazo="p2">2º · 10/09</button>
       <button data-prazo="ultimo">Último</button>
     </div>
+
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+      <input type="checkbox" id="eCortesia" style="width:auto; accent-color:var(--gold);" />
+      <span>Cortesia (sem cobrança)</span>
+    </label>
 
     <div class="price-row">
       <div class="lbl">Novo valor total</div>
@@ -1030,8 +1042,11 @@ function renderSegsCasa(){
   document.querySelectorAll('#prazoSegCasa button').forEach(b=>{
     b.classList.toggle('on', b.dataset.prazo === selPrazoCasa);
   });
-  const v = config.casaPrecos[selCatCasa][selPrazoCasa];
-  document.getElementById('valorTotalCasa').textContent = fmtBRL(v);
+  const cort = document.getElementById('cCortesia').checked;
+  const el = document.getElementById('valorTotalCasa');
+  el.textContent = cort ? 'Cortesia' : fmtBRL(config.casaPrecos[selCatCasa][selPrazoCasa]);
+  el.style.color = cort ? '#6fcf7f' : '';
+  document.getElementById('cEntradaBox').style.display = cort ? 'none' : 'block';
 }
 
 function renderTabelaPrecosCasa(){
@@ -1050,11 +1065,12 @@ function restante(r){ return Math.max(0, r.valorTotal - totalPago(r)); }
 async function gerarCasa(){
   const nome = document.getElementById('cNome').value.trim();
   if(!nome){ alert('Digite o nome da pessoa.'); return; }
-  const entradaVal = parseFloat(document.getElementById('cEntrada').value.replace(',','.')) || 0;
+  const cortesia = document.getElementById('cCortesia').checked;
+  const entradaVal = cortesia ? 0 : (parseFloat(document.getElementById('cEntrada').value.replace(',','.')) || 0);
   const id = nextCasaNumber(selCatCasa);
-  const valorTotal = config.casaPrecos[selCatCasa][selPrazoCasa];
+  const valorTotal = cortesia ? 0 : config.casaPrecos[selCatCasa][selPrazoCasa];
   const registro = {
-    id, nome, cat:selCatCasa, prazo:selPrazoCasa, valorTotal,
+    id, nome, cat:selCatCasa, prazo:selPrazoCasa, valorTotal, cortesia,
     pagamentos: entradaVal > 0 ? [{ valor:entradaVal, data:new Date().toISOString() }] : [],
     criadoEm: new Date().toISOString()
   };
@@ -1062,6 +1078,7 @@ async function gerarCasa(){
   await saveCasa();
   document.getElementById('cNome').value = '';
   document.getElementById('cEntrada').value = '';
+  document.getElementById('cCortesia').checked = false;
   renderAll();
 }
 
@@ -1099,14 +1116,14 @@ function renderListaCasa(){
         <div class="row1">
           <div>
             <div class="name">${esc(r.nome)}</div>
-            <div class="meta">${CASA_PRAZOS[r.prazo]} · Total ${fmtBRL(r.valorTotal)}</div>
+            <div class="meta">${r.cortesia ? '🎁 Cortesia' : CASA_PRAZOS[r.prazo] + ' · Total ' + fmtBRL(r.valorTotal)}</div>
           </div>
           <div class="tag">${CATS[r.cat].label}</div>
         </div>
         <div class="foot">
           <div class="id mono">${r.id}</div>
-          <div class="price">Pago ${fmtBRL(pago)}</div>
-          <div class="status ${quitado?'entrou':'pendente'}">${quitado ? 'Quitado' : 'Falta ' + fmtBRL(falta)}</div>
+          <div class="price">${r.cortesia ? '🎁 Cortesia' : 'Pago ' + fmtBRL(pago)}</div>
+          <div class="status ${quitado?'entrou':'pendente'}">${r.cortesia ? 'Cortesia' : (quitado ? 'Quitado' : 'Falta ' + fmtBRL(falta))}</div>
         </div>
         ${quitado ? '' : `<button class="btn secondary" style="margin-top:10px;" onclick="registrarPagamento('${r.id}')">Registrar pagamento</button>`}
         <button class="btn secondary" style="margin-top:8px;" onclick="abrirEdicaoCasa('${r.id}')">Editar</button>
@@ -1124,6 +1141,7 @@ function renderCaixaCasa(){
     <div class="stat"><div class="n">${fmtBRL(totalRecebido)}</div><div class="l">já recebido (caixa casa)</div></div>
     <div class="stat"><div class="n">${fmtBRL(totalAReceber)}</div><div class="l">ainda a receber</div></div>
     <div class="stat"><div class="n">${fmtBRL(totalEsperado)}</div><div class="l">valor total esperado</div></div>
+    <div class="stat"><div class="n">${casaRecords.filter(r=>r.cortesia).length}</div><div class="l">🎁 cortesias na casa</div></div>
   `;
 }
 
@@ -1152,6 +1170,7 @@ function abrirEdicaoCasa(id){
   document.getElementById('eNome').value = r.nome;
   document.querySelectorAll('#catSegEditar button').forEach(b=>b.classList.toggle('on', b.dataset.cat===r.cat));
   document.querySelectorAll('#prazoSegEditar button').forEach(b=>b.classList.toggle('on', b.dataset.prazo===r.prazo));
+  document.getElementById('eCortesia').checked = !!r.cortesia;
   updateValorTotalEditar();
   document.getElementById('modalEditarCasa').classList.remove('hidden');
 }
@@ -1160,7 +1179,8 @@ window.abrirEdicaoCasa = abrirEdicaoCasa;
 function updateValorTotalEditar(){
   const cat = document.querySelector('#catSegEditar button.on')?.dataset.cat || 'solteiro';
   const prazo = document.querySelector('#prazoSegEditar button.on')?.dataset.prazo || 'p1';
-  document.getElementById('valorTotalEditar').textContent = fmtBRL(config.casaPrecos[cat][prazo]);
+  document.getElementById('valorTotalEditar').textContent =
+    document.getElementById('eCortesia').checked ? 'Cortesia' : fmtBRL(config.casaPrecos[cat][prazo]);
 }
 
 document.getElementById('catSegEditar').addEventListener('click', e=>{
@@ -1187,7 +1207,8 @@ document.getElementById('btnSalvarEdicaoCasa').addEventListener('click', async (
   r.nome = novoNome;
   r.cat = novoCat;
   r.prazo = novoPrazo;
-  r.valorTotal = config.casaPrecos[novoCat][novoPrazo];
+  r.cortesia = document.getElementById('eCortesia').checked;
+  r.valorTotal = r.cortesia ? 0 : config.casaPrecos[novoCat][novoPrazo];
   await saveCasa();
   renderAll();
   document.getElementById('modalEditarCasa').classList.add('hidden');
@@ -1701,6 +1722,8 @@ document.getElementById('prazoSegCasa').addEventListener('click', e=>{
   selPrazoCasa = b.dataset.prazo; renderSegsCasa();
 });
 document.getElementById('btnGerarCasa').addEventListener('click', gerarCasa);
+document.getElementById('cCortesia').addEventListener('change', renderSegsCasa);
+document.getElementById('eCortesia').addEventListener('change', updateValorTotalEditar);
 document.getElementById('buscaCasa').addEventListener('input', renderListaCasa);
 document.getElementById('btnEditarPrecosCasa').addEventListener('click', abrirModalPrecosCasa);
 document.getElementById('fecharModalPrecosCasa').addEventListener('click', ()=>document.getElementById('modalPrecosCasa').classList.add('hidden'));
