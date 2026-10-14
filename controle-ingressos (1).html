@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Controle de Ingressos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg:#150f22;
+    --surface:#1e1733;
+    --surface-2:#291f40;
+    --line: rgba(243,237,226,0.12);
+    --text:#f3ede2;
+    --muted:#a89fc0;
+    --gold:#d8ab5c;
+    --rose:#c85a72;
+    --teal:#4fa89a;
+    --gold-d:#3a2f18;
+    --rose-d:#3a1f26;
+    --teal-d:#173230;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #201636 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'Work Sans', sans-serif;
+    min-height:100vh;
+    padding-bottom:90px;
+  }
+  h1,h2,h3,.display{ font-family:'Fraunces', serif; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  header.top{
+    padding:28px 20px 18px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+  }
+  header.top .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--gold);
+    text-transform:uppercase;
+  }
+  header.top h1{
+    font-size:28px;
+    font-weight:700;
+    margin:6px 0 2px;
+  }
+  header.top input#eventName{
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-family:'Fraunces',serif;
+    font-size:28px;
+    font-weight:700;
+    text-align:center;
+    width:100%;
+    border-bottom:1px dashed transparent;
+  }
+  header.top input#eventName:focus{ outline:none; border-bottom:1px dashed var(--gold); }
+  header.top .sub{ color:var(--muted); font-size:13px; margin-top:2px;}
+
+  main{ max-width:520px; margin:0 auto; padding:18px 16px 40px; }
+
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; background:var(--surface);
+    border-top:1px solid var(--line);
+    z-index:50;
+  }
+  .tabbar button{
+    flex:1; padding:11px 2px 9px; background:none; border:none;
+    color:var(--muted); font-family:'Work Sans',sans-serif; font-size:10px; min-width:0;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:pointer;
+  }
+  .tabbar button .ic{ font-size:16px; }
+  .tabbar button.active{ color:var(--gold); }
+
+  .view{ display:none; }
+  .view.active{ display:block; animation:fade .25s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  label{ display:block; font-size:12px; color:var(--muted); margin:14px 0 6px; letter-spacing:.03em; }
+  label:first-child{ margin-top:0; }
+  input[type=text], input[type=date], select{
+    width:100%; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--text); padding:11px 12px; border-radius:9px; font-size:15px;
+    font-family:'Work Sans',sans-serif;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--gold); }
+
+  .segmented{ display:flex; gap:8px; }
+  .segmented button{
+    flex:1; padding:10px 6px; border-radius:9px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--text); font-size:13px; cursor:pointer;
+    font-family:'Work Sans',sans-serif;
+  }
+  .segmented button.sel-solteiro.on{ background:var(--gold-d); border-color:var(--gold); color:var(--gold); }
+  .segmented button.sel-casal.on{ background:var(--rose-d); border-color:var(--rose); color:var(--rose); }
+  .segmented button.sel-solteira.on{ background:var(--teal-d); border-color:var(--teal); color:var(--teal); }
+  .segmented button.on:not(.sel-solteiro):not(.sel-casal):not(.sel-solteira){ background:var(--gold-d); border-color:var(--gold); color:var(--gold); }
+
+  .price-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-top:16px; padding-top:14px; border-top:1px dashed var(--line);
+  }
+  .price-row .lbl{ font-size:12px; color:var(--muted); }
+  .price-row .val{ font-family:'Fraunces',serif; font-size:26px; font-weight:700; color:var(--gold); }
+
+  .btn{
+    width:100%; padding:14px; border-radius:10px; border:none;
+    background:linear-gradient(135deg,var(--gold),#b98a3e); color:#1a1305;
+    font-weight:600; font-size:15px; cursor:pointer; margin-top:16px;
+    font-family:'Work Sans',sans-serif;
+  }
+  .btn.secondary{ background:var(--surface-2); color:var(--text); border:1px solid var(--line); }
+  .btn.danger{ background:var(--rose-d); color:var(--rose); border:1px solid var(--rose); }
+
+  /* ticket stub */
+  .stub{
+    display:flex; border-radius:14px; overflow:hidden; margin-bottom:12px;
+    border:1px solid var(--line); background:var(--surface);
+  }
+  .stub .spine{ width:7px; }
+  .stub.cat-solteiro .spine{ background:var(--gold); }
+  .stub.cat-casal .spine{ background:var(--rose); }
+  .stub.cat-solteira .spine{ background:var(--teal); }
+  .stub .body{ flex:1; padding:14px 14px 14px 12px; }
+  .stub .row1{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .stub .name{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; }
+  .stub .meta{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .stub .tag{
+    font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 8px;
+    border-radius:20px; white-space:nowrap; letter-spacing:.03em;
+  }
+  .stub.cat-solteiro .tag{ background:var(--gold-d); color:var(--gold); }
+  .stub.cat-casal .tag{ background:var(--rose-d); color:var(--rose); }
+  .stub.cat-solteira .tag{ background:var(--teal-d); color:var(--teal); }
+  .stub .foot{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .stub .id{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .stub .price{ font-family:'Fraunces',serif; font-weight:700; color:var(--gold); }
+  .stub .status{ font-size:11px; padding:2px 8px; border-radius:20px; }
+  .status.entrou{ background:#173a1f; color:#6fcf7f; }
+  .status.pendente{ background:var(--surface-2); color:var(--muted); }
+  .status.cortesia{ background:#173a1f; color:#6fcf7f; }
+
+  .search{ margin-bottom:14px; }
+  .filters{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .filters button{
+    padding:6px 12px; border-radius:20px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--muted); font-size:12px; cursor:pointer;
+  }
+  .filters button.on{ border-color:var(--gold); color:var(--gold); }
+
+  .empty{ text-align:center; padding:40px 10px; color:var(--muted); }
+  .empty .display{ font-size:20px; color:var(--text); margin-bottom:6px; }
+
+  /* summary */
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .stat{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px;
+  }
+  .stat .n{ font-family:'Fraunces',serif; font-size:24px; font-weight:700; color:var(--gold); }
+  .stat .l{ font-size:11px; color:var(--muted); margin-top:2px; }
+  table.lote{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.lote th{ text-align:left; color:var(--muted); font-weight:500; font-size:11px; padding:6px 4px; border-bottom:1px solid var(--line); }
+  table.lote td{ padding:8px 4px; border-bottom:1px solid var(--line); }
+  table.lote tr:last-child td{ border-bottom:none; }
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(10,7,17,0.8); z-index:100;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .overlay.hidden{ display:none; }
+  .modal{
+    background:var(--surface); width:100%; max-width:520px; border-radius:20px 20px 0 0;
+    padding:22px 20px 26px; max-height:88vh; overflow-y:auto;
+  }
+  .modal .close{ text-align:right; }
+  .modal .close button{ background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
+
+  .ticket-full{
+    background:var(--surface-2); border-radius:16px; padding:22px; text-align:center; position:relative;
+  }
+  .ticket-full .catband{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+  .ticket-full.cat-solteiro .catband{ color:var(--gold);}
+  .ticket-full.cat-casal .catband{ color:var(--rose);}
+  .ticket-full.cat-solteira .catband{ color:var(--teal);}
+  .ticket-full h2{ font-size:24px; margin:8px 0 2px; }
+  .ticket-full .evt{ color:var(--muted); font-size:13px; margin-bottom:16px;}
+  .qrbox{ background:#fff; padding:12px; border-radius:12px; display:inline-block; margin:6px 0 14px; }
+  .ticket-full .idline{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); letter-spacing:.05em; }
+  .ticket-full .perfline{
+    border-top:2px dashed var(--line); margin:18px 0; position:relative;
+  }
+  .ticket-full .pricebig{ font-family:'Fraunces',serif; font-size:20px; font-weight:700; color:var(--gold); }
+
+  #scanBox{ width:100%; border-radius:12px; overflow:hidden; margin-top:10px; }
+  .scan-result{ margin-top:14px; padding:14px; border-radius:12px; }
+  .scan-ok{ background:#173a1f; border:1px solid #2f7a41; }
+  .scan-bad{ background:var(--rose-d); border:1px solid var(--rose); }
+  .scan-used{ background:#3a2f18; border:1px solid var(--gold); }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #printArea, #printArea *{ visibility:visible; }
+    #printArea{ position:absolute; top:0; left:0; width:100%; }
+  }
+  /* indicações */
+  .stub.cat-ind .spine{ background:#9b7be0; }
+  .stub.cat-ind .tag{ background:#2a2147; color:#b9a2f5; }
+  .status.saldo{ background:var(--gold-d); color:var(--gold); }
+  .bar{ height:6px; background:var(--surface-2); border-radius:6px; overflow:hidden; margin-top:10px; }
+  .bar > div{ height:100%; background:linear-gradient(90deg,var(--gold),#b98a3e); }
+  .ind-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .ind-actions .btn{ margin:0; padding:10px 6px; font-size:13px; }
+  #dbBanner{ display:none; position:sticky; top:0; z-index:200; background:#5a1f2b; color:#ffd9de;
+    padding:10px 14px; font-size:13px; text-align:center; border-bottom:1px solid var(--rose); }
+  .saldo-big{ font-family:'Fraunces',serif; font-size:34px; font-weight:700; color:var(--gold); text-align:center; margin:6px 0 2px; }
+  .kv{ display:flex; justify-content:space-between; font-size:14px; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .kv:last-child{ border-bottom:none; }
+  .kv span:first-child{ color:var(--muted); }
+</style>
+</head>
+<body>
+
+<div id="dbBanner"></div>
+
+<header class="top">
+  <div class="eyebrow">Controle de Entrada</div>
+  <input id="eventName" value="Meu Evento" />
+  <div class="sub" id="eventDateSub">defina a data do evento em Resumo → Configurar</div>
+</header>
+
+<main>
+
+  <!-- VENDER -->
+  <section class="view active" id="view-vender">
+    <div class="card">
+      <label>Nome completo</label>
+      <input type="text" id="fNome" placeholder="Nome do comprador" />
+
+      <label>Categoria</label>
+      <div class="segmented" id="catSeg">
+        <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+        <button class="sel-casal" data-cat="casal">Casal</button>
+        <button class="sel-solteira" data-cat="solteira">Solteira</button>
+      </div>
+
+      <label>Lote</label>
+      <div class="segmented" id="loteSeg">
+        <button data-lote="lote1">1º Lote</button>
+        <button data-lote="lote2">2º Lote</button>
+        <button data-lote="hora">Na Hora</button>
+      </div>
+      <p style="color:var(--muted); font-size:11.5px; margin:6px 0 0;">O lote vem pré-selecionado pela data, mas você pode tocar em outro a qualquer momento — útil pra lançar vendas atrasadas do 1º lote.</p>
+
+      <label>Forma de pagamento (opcional)</label>
+      <select id="fPagamento">
+        <option value="">Não informado</option>
+        <option value="Pix">Pix</option>
+        <option value="Dinheiro">Dinheiro</option>
+        <option value="Cartão">Cartão</option>
+      </select>
+
+      <label>WhatsApp da pessoa (opcional)</label>
+      <input type="text" id="fWhats" class="mono" placeholder="Ex: 27 99999-9999" inputmode="tel" />
+
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="fCortesia" style="width:auto; accent-color:var(--gold);" />
+        <span>Ingresso de cortesia (sem cobrança)</span>
+      </label>
+
+      <label>Entrada paga agora (deixe em branco se pagou tudo)</label>
+      <input type="text" id="fEntrada" class="mono" placeholder="Ex: 100" inputmode="decimal" />
+
+      <div class="price-row">
+        <div class="lbl">Valor do ingresso</div>
+        <div class="val" id="precoAtual">R$ 0</div>
+      </div>
+
+      <button class="btn" id="btnGerar">Gerar ingresso + QR Code</button>
+    </div>
+
+    <div class="card" id="cfgCard">
+      <h3 class="display" style="margin:0 0 10px;font-size:17px;">Tabela de valores por lote</h3>
+      <table class="lote" id="tabelaPrecos"></table>
+      <button class="btn secondary" id="btnEditarPrecos" style="margin-top:14px;">Editar valores e datas</button>
+    </div>
+  </section>
+
+  <!-- INGRESSOS -->
+  <section class="view" id="view-ingressos">
+    <input type="text" class="search" id="busca" placeholder="Buscar por nome ou código..." />
+    <div class="filters" id="filtros">
+      <button class="on" data-f="todos">Todos</button>
+      <button data-f="solteiro">Solteiro</button>
+      <button data-f="casal">Casal</button>
+      <button data-f="solteira">Solteira</button>
+      <button data-f="pendente">Não entrou</button>
+      <button data-f="entrou">Já entrou</button>
+      <button data-f="cortesia">Cortesias</button>
+    </div>
+    <div id="listaIngressos"></div>
+  </section>
+
+  <!-- CHECK-IN -->
+  <section class="view" id="view-checkin">
+    <div class="card">
+      <h3 class="display" style="margin:0 0 4px;font-size:18px;">Confirmar entrada</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">Escaneie o QR do ingresso na câmera ou digite o código manualmente.</p>
+      <button class="btn secondary" id="btnScan">Abrir câmera para escanear</button>
+      <div id="scanBox"></div>
+      <label>Ou digite o código do ingresso</label>
+      <input type="text" id="codigoManual" placeholder="Ex: SOL-0001" class="mono" />
+      <button class="btn" id="btnConfirmarManual">Confirmar entrada</button>
+      <div id="scanResultado"></div>
+    </div>
+  </section>
+
+  <!-- CASA -->
+  <section class="view" id="view-casa">
+    <div class="stat-grid" id="statGridCasa"></div>
+
+    <div class="card">
+      <label>Nome completo</label>
+      <input type="text" id="cNome" placeholder="Nome da pessoa" />
+
+      <label>Categoria</label>
+      <div class="segmented" id="catSegCasa">
+        <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+        <button class="sel-casal" data-cat="casal">Casal</button>
+        <button class="sel-solteira" data-cat="solteira">Solteira</button>
+      </div>
+
+      <label>Prazo</label>
+      <div class="segmented" id="prazoSegCasa">
+        <button data-prazo="p1">Até 25/08</button>
+        <button data-prazo="p2">2º · 10/09</button>
+        <button data-prazo="ultimo">Último</button>
+      </div>
+      <p style="color:var(--muted); font-size:11.5px; margin:6px 0 0;">Toque no prazo que quiser a qualquer momento, mesmo que a data já tenha passado — útil pra lançar cadastros atrasados do 1º prazo.</p>
+
+      <div class="price-row">
+        <div class="lbl">Valor total da casa</div>
+        <div class="val" id="valorTotalCasa">R$ 0</div>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="cCortesia" style="width:auto; accent-color:var(--gold);" />
+        <span>Ingresso da casa de cortesia (sem cobrança)</span>
+      </label>
+
+      <div id="cEntradaBox">
+        <label>Entrada paga agora</label>
+        <input type="text" id="cEntrada" class="mono" placeholder="Ex: 100" inputmode="decimal" />
+      </div>
+
+      <button class="btn" id="btnGerarCasa">Cadastrar na casa</button>
+    </div>
+
+    <div class="card">
+      <h3 class="display" style="margin:0 0 10px;font-size:17px;">Tabela de valores da Casa</h3>
+      <table class="lote" id="tabelaPrecosCasa"></table>
+      <button class="btn secondary" id="btnEditarPrecosCasa" style="margin-top:14px;">Editar valores e prazos</button>
+    </div>
+
+    <input type="text" class="search" id="buscaCasa" placeholder="Buscar por nome..." style="margin-bottom:12px;" />
+    <div id="listaCasa"></div>
+  </section>
+
+  <!-- INDICAÇÕES -->
+  <section class="view" id="view-indicacoes">
+    <div class="stat-grid" id="statGridInd"></div>
+    <button class="btn" id="btnScanInd" style="margin-top:0; margin-bottom:16px;">📷 Escanear QR e registrar consumo</button>
+
+    <div class="card">
+      <h3 class="display" style="margin:0 0 12px;font-size:17px;">Cadastrar indicação</h3>
+      <label>Nome completo</label>
+      <input type="text" id="iNome" placeholder="Quem está indicando" />
+
+      <label>WhatsApp (opcional)</label>
+      <input type="text" id="iWhats" class="mono" placeholder="Ex: 27 99999-9999" inputmode="tel" />
+
+      <label>Valor por indicação (R$)</label>
+      <input type="text" id="iValor" class="mono" value="20" inputmode="decimal" />
+
+      <label>Quantas indicações já fez</label>
+      <input type="text" id="iQtd" class="mono" value="0" inputmode="numeric" />
+
+      <div class="price-row">
+        <div class="lbl">Crédito inicial para consumo</div>
+        <div class="val" id="iPreview">R$ 0,00</div>
+      </div>
+      <button class="btn" id="btnCadInd">Cadastrar e gerar QR Code</button>
+    </div>
+
+    <input type="text" class="search" id="buscaInd" placeholder="Buscar por nome ou código..." />
+    <div id="listaInd"></div>
+  </section>
+
+  <!-- RESUMO -->
+  <section class="view" id="view-resumo">
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="card">
+      <h3 class="display" style="margin:0 0 12px;font-size:17px;">Vendas por categoria e lote</h3>
+      <table class="lote" id="resumoTabela"></table>
+    </div>
+    <div class="card">
+      <h3 class="display" style="margin:0 0 10px;font-size:17px;">Configurar evento</h3>
+      <label>Data do evento</label>
+      <input type="date" id="cfgDataEvento" />
+      <label>Início do 1º lote</label>
+      <input type="date" id="cfgLote1Ini" />
+      <label>Fim do 1º lote (início do 2º)</label>
+      <input type="date" id="cfgLote1Fim" />
+      <button class="btn secondary" id="btnSalvarCfg">Salvar configuração</button>
+    </div>
+    <button class="btn secondary" id="btnBackup" style="margin-bottom:10px;">Baixar backup dos dados (arquivo)</button>
+    <button class="btn danger" id="btnLimparTudo">Apagar todos os dados</button>
+  </section>
+
+</main>
+
+<div class="tabbar">
+  <button class="tab-btn active" data-view="vender"><span class="ic">🎟️</span>Vender</button>
+  <button class="tab-btn" data-view="ingressos"><span class="ic">📋</span>Ingressos</button>
+  <button class="tab-btn" data-view="checkin"><span class="ic">✅</span>Check-in</button>
+  <button class="tab-btn" data-view="casa"><span class="ic">🏠</span>Casa</button>
+  <button class="tab-btn" data-view="indicacoes"><span class="ic">🤝</span>Indicações</button>
+  <button class="tab-btn" data-view="resumo"><span class="ic">📊</span>Resumo</button>
+</div>
+
+<!-- MODAL: ticket gerado -->
+<div class="overlay hidden" id="modalTicket">
+  <div class="modal">
+    <div class="close"><button id="fecharModal">✕</button></div>
+    <div id="printArea">
+      <div class="ticket-full" id="ticketFullBox">
+        <!-- preenchido via JS -->
+      </div>
+    </div>
+    <button class="btn" id="btnWhatsapp" style="margin-top:16px;">Enviar direto pelo WhatsApp da pessoa</button>
+    <button class="btn secondary" id="btnCompartilhar" style="margin-top:10px;">Enviar (escolher app / WhatsApp)</button>
+    <button class="btn secondary" id="btnBaixar" style="margin-top:10px;">Baixar imagem do ingresso</button>
+    <button class="btn secondary" id="btnImprimir" style="margin-top:10px;">Imprimir / salvar como PDF</button>
+    <p id="shareHint" style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px;"></p>
+  </div>
+</div>
+
+<!-- MODAL: editar preços -->
+<div class="overlay hidden" id="modalPrecos">
+  <div class="modal">
+    <div class="close"><button id="fecharModalPrecos">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar valores</h3>
+    <div id="formPrecos"></div>
+    <button class="btn" id="btnSalvarPrecos">Salvar valores</button>
+  </div>
+</div>
+
+<!-- MODAL: editar preços casa -->
+<div class="overlay hidden" id="modalPrecosCasa">
+  <div class="modal">
+    <div class="close"><button id="fecharModalPrecosCasa">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar valores da Casa</h3>
+    <div id="formPrecosCasa"></div>
+    <button class="btn" id="btnSalvarPrecosCasa">Salvar valores</button>
+  </div>
+</div>
+
+<!-- MODAL: QR da indicação -->
+<div class="overlay hidden" id="modalQrInd">
+  <div class="modal">
+    <div class="close"><button id="fecharModalQrInd">✕</button></div>
+    <div class="ticket-full cat-solteiro" id="indTicketBox"></div>
+    <button class="btn" id="btnWhatsQrInd" style="margin-top:16px;">Enviar pelo WhatsApp da pessoa</button>
+    <button class="btn secondary" id="btnBaixarQrInd" style="margin-top:10px;">Baixar imagem do QR Code</button>
+    <p id="qrIndHint" style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px;"></p>
+  </div>
+</div>
+
+<!-- MODAL: scanner de indicação -->
+<div class="overlay hidden" id="modalScanInd">
+  <div class="modal">
+    <div class="close"><button id="fecharScanInd">✕</button></div>
+    <h3 class="display" style="margin:0 0 6px;">Escanear QR de indicação</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 10px;">Aponte a câmera para o QR Code da pessoa.</p>
+    <div id="qrReaderInd" style="width:100%;border-radius:12px;overflow:hidden;"></div>
+  </div>
+</div>
+
+<!-- MODAL: consumo -->
+<div class="overlay hidden" id="modalConsumo">
+  <div class="modal">
+    <div class="close"><button id="fecharConsumo">✕</button></div>
+    <div id="kForm">
+      <h3 class="display" id="kNome" style="margin:0 0 10px;font-size:22px;"></h3>
+      <div class="kv"><span>Crédito total</span><span id="kCredito"></span></div>
+      <div class="kv"><span>Já consumido</span><span id="kGasto"></span></div>
+      <div class="saldo-big" id="kSaldo"></div>
+      <div style="text-align:center;color:var(--muted);font-size:12px;margin-bottom:8px;">saldo disponível</div>
+
+      <label>Valor gasto agora (R$)</label>
+      <input type="text" id="kValor" class="mono" placeholder="Ex: 12,50" inputmode="decimal" />
+      <button class="btn" id="kConfirmar">Confirmar consumo</button>
+      <button class="btn secondary" id="kTudo" style="margin-top:10px;">Usar o saldo todo</button>
+
+      <div id="kHist" style="margin-top:16px;font-size:12px;color:var(--muted);"></div>
+      <button class="btn secondary" id="kDesfazer" style="margin-top:10px;">Desfazer último consumo</button>
+    </div>
+    <div id="kResultado" style="display:none;text-align:center;">
+      <div id="kResTitulo" class="display" style="font-size:22px;margin:10px 0;"></div>
+      <div class="saldo-big" id="kResSaldo"></div>
+      <div id="kResSub" style="color:var(--muted);font-size:13px;margin-bottom:6px;"></div>
+      <button class="btn" id="kProximo">📷 Escanear próximo</button>
+      <button class="btn secondary" id="kFechar" style="margin-top:10px;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: editar indicação -->
+<div class="overlay hidden" id="modalEditarInd">
+  <div class="modal">
+    <div class="close"><button id="fecharModalEditarInd">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar indicação</h3>
+    <label>Nome completo</label>
+    <input type="text" id="eiNome" />
+    <label>WhatsApp</label>
+    <input type="text" id="eiWhats" class="mono" inputmode="tel" />
+    <label>Valor por indicação (R$)</label>
+    <input type="text" id="eiValor" class="mono" inputmode="decimal" />
+    <p id="eiResumo" style="color:var(--muted);font-size:12px;margin-top:8px;"></p>
+    <button class="btn" id="btnSalvarInd" style="margin-top:12px;">Salvar alterações</button>
+    <button class="btn secondary" id="btnRemoverIndicacao" style="margin-top:10px;">− Remover 1 indicação</button>
+    <button class="btn danger" id="btnExcluirInd" style="margin-top:10px;">Excluir este cadastro</button>
+  </div>
+</div>
+
+<!-- MODAL: editar registro casa -->
+<div class="overlay hidden" id="modalEditarCasa">
+  <div class="modal">
+    <div class="close"><button id="fecharModalEditarCasa">✕</button></div>
+    <h3 class="display" style="margin:0 0 12px;">Editar cadastro</h3>
+
+    <label>Nome completo</label>
+    <input type="text" id="eNome" />
+
+    <label>Categoria</label>
+    <div class="segmented" id="catSegEditar">
+      <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+      <button class="sel-casal" data-cat="casal">Casal</button>
+      <button class="sel-solteira" data-cat="solteira">Solteira</button>
+    </div>
+
+    <label>Prazo</label>
+    <div class="segmented" id="prazoSegEditar">
+      <button data-prazo="p1">Até 25/08</button>
+      <button data-prazo="p2">2º · 10/09</button>
+      <button data-prazo="ultimo">Último</button>
+    </div>
+
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+      <input type="checkbox" id="eCortesia" style="width:auto; accent-color:var(--gold);" />
+      <span>Cortesia (sem cobrança)</span>
+    </label>
+
+    <div class="price-row">
+      <div class="lbl">Novo valor total</div>
+      <div class="val" id="valorTotalEditar">R$ 0</div>
+    </div>
+    <p style="color:var(--muted); font-size:11.5px; margin-top:6px;">Os pagamentos já registrados continuam valendo — só o valor total e o saldo restante são recalculados.</p>
+
+    <button class="btn" id="btnSalvarEdicaoCasa" style="margin-top:16px;">Salvar alterações</button>
+    <button class="btn danger" id="btnExcluirCasa" style="margin-top:10px;">Excluir este cadastro</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script>
+(function(){
+
+// ---------- state ----------
+const CATS = {
+  solteiro: { label:'Solteiro', prefix:'SOL' },
+  casal:    { label:'Casal',    prefix:'CAS' },
+  solteira: { label:'Solteira', prefix:'SOA' }
+};
+const LOTES = { lote1:'1º Lote', lote2:'2º Lote', hora:'Na Hora' };
+
+let config = {
+  eventName: 'Meu Evento',
+  eventDate: '',
+  lote1Ini: '2026-08-15',
+  lote1Fim: '2026-08-25',
+  precos: {
+    solteiro: { lote1:200, lote2:250, hora:280 },
+    casal:    { lote1:130, lote2:150, hora:180 },
+    solteira: { lote1:60,  lote2:80,  hora:100 }
+  },
+  casaPrecos: {
+    solteiro: { p1:350, p2:380, ultimo:400 },
+    casal:    { p1:380, p2:400, ultimo:420 },
+    solteira: { p1:185, p2:200, ultimo:220 }
+  }
+};
+let tickets = [];
+let casaRecords = [];
+let selCat = 'solteiro';
+let selLote = 'lote1';
+let selCatCasa = 'solteiro';
+let selPrazoCasa = 'p1';
+let filtroAtual = 'todos';
+let html5QrCode = null;
+
+const CASA_PRAZOS = { p1:'Até 25/08', p2:'2º Prazo · 10/09', ultimo:'Último Prazo' };
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+// o Firebase não guarda listas vazias e devolve listas "ralas" como objeto: normaliza sempre
+function toArr(v){
+  if(!v) return [];
+  return Array.isArray(v) ? v.filter(x => x != null) : Object.values(v);
+}
+
+// ---------- Firebase Realtime Database — sincroniza entre todos os celulares em tempo real ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyB1oV1qWDLVOWwbXTQMwlgaf6yPdtq5520",
+  authDomain: "controle-ingressos.firebaseapp.com",
+  databaseURL: "https://controle-ingressos-default-rtdb.firebaseio.com",
+  projectId: "controle-ingressos",
+  storageBucket: "controle-ingressos.firebasestorage.app",
+  messagingSenderId: "780443709821",
+  appId: "1:780443709821:web:c54e74629b971271fc5c14"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ---------- migração automática: recupera dados salvos antes do Firebase (localStorage deste celular) ----------
+function migrarDadosAntigos(){
+  const legacyTickets = localStorage.getItem('controle-ingressos:tickets');
+  const legacyCasa = localStorage.getItem('controle-ingressos:casa');
+  const legacyConfig = localStorage.getItem('controle-ingressos:config');
+  if(!legacyTickets && !legacyCasa && !legacyConfig) return;
+
+  Promise.all([
+    db.ref('tickets').once('value'),
+    db.ref('casa').once('value'),
+    db.ref('config').once('value')
+  ]).then(([tSnap, cSnap, cfgSnap])=>{
+    const remoteTickets = tSnap.val() || [];
+    const remoteCasa = cSnap.val() || [];
+    let importou = false;
+
+    if(remoteTickets.length===0 && legacyTickets){
+      try{
+        const parsed = JSON.parse(legacyTickets);
+        if(parsed.length>0){ db.ref('tickets').set(parsed); importou = true; }
+      }catch(e){}
+    }
+    if(remoteCasa.length===0 && legacyCasa){
+      try{
+        const parsed = JSON.parse(legacyCasa);
+        if(parsed.length>0){ db.ref('casa').set(parsed); importou = true; }
+      }catch(e){}
+    }
+    if(!cfgSnap.val() && legacyConfig){
+      try{ db.ref('config').set(JSON.parse(legacyConfig)); }catch(e){}
+    }
+
+    if(importou){
+      alert('Encontramos dados salvos anteriormente neste celular e importamos automaticamente para a nuvem! 🎉');
+    }
+    // limpa as chaves antigas pra não tentar importar de novo nas próximas vezes
+    localStorage.removeItem('controle-ingressos:tickets');
+    localStorage.removeItem('controle-ingressos:casa');
+    localStorage.removeItem('controle-ingressos:config');
+  }).catch(()=>{});
+}
+
+function erroBanco(e){
+  console.error(e);
+  const b = document.getElementById('dbBanner');
+  const negado = e && (e.code === 'PERMISSION_DENIED' || /permission_denied/i.test(String(e.message || e)));
+  b.textContent = negado
+    ? '⚠️ O banco de dados bloqueou o acesso (regras do Firebase vencidas). Nada está sendo carregado nem salvo até corrigir.'
+    : '⚠️ Problema de conexão com o banco de dados. Confira a internet — os dados podem não estar sendo salvos.';
+  b.style.display = 'block';
+}
+function bancoOk(){ document.getElementById('dbBanner').style.display = 'none'; }
+
+function salvarNo(path, data){
+  const aviso = () => alert('⚠️ NÃO FOI POSSÍVEL SALVAR. O banco de dados recusou a gravação — este último cadastro pode se perder ao fechar o app.');
+  try{
+    return db.ref(path).set(data).catch(e => { erroBanco(e); aviso(); });
+  }catch(e){
+    erroBanco(e); aviso();
+    return Promise.resolve();
+  }
+}
+
+function loadAll(){
+  migrarDadosAntigos();
+  db.ref('config').on('value', snap=>{
+    bancoOk();
+    const val = snap.val();
+    if(val){
+      config = Object.assign(config, val);
+    }else{
+      salvarNo('config', config);
+    }
+    document.getElementById('eventName').value = config.eventName;
+    document.getElementById('cfgDataEvento').value = config.eventDate;
+    document.getElementById('cfgLote1Ini').value = config.lote1Ini;
+    document.getElementById('cfgLote1Fim').value = config.lote1Fim;
+    renderAll();
+  }, erroBanco);
+  db.ref('tickets').on('value', snap=>{
+    bancoOk();
+    tickets = toArr(snap.val()).map(t=>{
+      if(t.pagamentos !== undefined) t.pagamentos = toArr(t.pagamentos);
+      return t;
+    });
+    renderAll();
+  }, erroBanco);
+  db.ref('casa').on('value', snap=>{
+    bancoOk();
+    casaRecords = toArr(snap.val()).map(r=>{ r.pagamentos = toArr(r.pagamentos); return r; });
+    renderAll();
+  }, erroBanco);
+  db.ref('indicacoes').on('value', snap=>{
+    bancoOk();
+    indicacoes = toArr(snap.val()).map(normInd)
+      .sort((a,b)=>String(b.criadoEm||'').localeCompare(String(a.criadoEm||'')));
+    renderAll();
+  }, erroBanco);
+}
+function saveConfig(){ return salvarNo('config', config); }
+function saveTickets(){ return salvarNo('tickets', tickets); }
+function saveCasa(){ return salvarNo('casa', casaRecords); }
+
+// ---------- helpers ----------
+function fmtBRL(v){ return 'R$ ' + Number(v).toFixed(0); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function sugerirLote(){
+  const hoje = todayISO();
+  if(config.eventDate && hoje >= config.eventDate) return 'hora';
+  if(config.lote1Ini && config.lote1Fim && hoje >= config.lote1Ini && hoje <= config.lote1Fim) return 'lote1';
+  if(config.lote1Fim && hoje > config.lote1Fim) return 'lote2';
+  return 'lote1';
+}
+
+function nextTicketNumber(cat){
+  const count = tickets.filter(t => t.cat === cat).length + 1;
+  return CATS[cat].prefix + '-' + String(count).padStart(4,'0');
+}
+
+function updatePrecoAtual(){
+  const cortesia = document.getElementById('fCortesia').checked;
+  const p = config.precos[selCat][selLote];
+  const el = document.getElementById('precoAtual');
+  if(cortesia){
+    el.textContent = 'Cortesia';
+    el.style.color = '#6fcf7f';
+  }else{
+    el.textContent = fmtBRL(p);
+    el.style.color = '';
+  }
+}
+
+// ---------- render: seg controls ----------
+function renderSegs(){
+  document.querySelectorAll('#catSeg button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.cat === selCat);
+  });
+  document.querySelectorAll('#loteSeg button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.lote === selLote);
+  });
+  updatePrecoAtual();
+}
+
+// ---------- render: tabela de preços (vender) ----------
+function renderTabelaPrecos(){
+  const tb = document.getElementById('tabelaPrecos');
+  let html = '<tr><th>Categoria</th><th>1º Lote</th><th>2º Lote</th><th>Na hora</th></tr>';
+  Object.keys(CATS).forEach(c=>{
+    const p = config.precos[c];
+    html += `<tr><td>${CATS[c].label}</td><td>${fmtBRL(p.lote1)}</td><td>${fmtBRL(p.lote2)}</td><td>${fmtBRL(p.hora)}</td></tr>`;
+  });
+  tb.innerHTML = html;
+}
+
+// ---------- gerar ingresso ----------
+function gerarQRCode(container, texto){
+  container.innerHTML = '';
+  new QRCode(container, { text: texto, width: 160, height: 160, colorDark:'#150f22', colorLight:'#ffffff' });
+}
+
+async function gerarIngresso(){
+  const nome = document.getElementById('fNome').value.trim();
+  if(!nome){ alert('Digite o nome do comprador.'); return; }
+  const pagamento = document.getElementById('fPagamento').value;
+  const whatsapp = document.getElementById('fWhats').value.trim();
+  const cortesia = document.getElementById('fCortesia').checked;
+  const entradaVal = parseFloat(document.getElementById('fEntrada').value.replace(',','.')) || 0;
+  const id = nextTicketNumber(selCat);
+  const preco = cortesia ? 0 : config.precos[selCat][selLote];
+  const valorPago = cortesia ? preco : (entradaVal > 0 ? entradaVal : preco); // sem entrada informada = considera pago integral
+  const ticket = {
+    id, nome, cat:selCat, lote:selLote, preco, pagamento, whatsapp, cortesia,
+    pagamentos: valorPago > 0 ? [{ valor:valorPago, data:new Date().toISOString() }] : [],
+    dataVenda: new Date().toISOString(),
+    checkedIn:false, checkinTime:null
+  };
+  tickets.unshift(ticket);
+  await saveTickets();
+  document.getElementById('fNome').value = '';
+  document.getElementById('fWhats').value = '';
+  document.getElementById('fEntrada').value = '';
+  document.getElementById('fCortesia').checked = false;
+  updatePrecoAtual();
+  showTicketModal(ticket);
+  renderAll();
+}
+
+function showTicketModal(t){
+  const box = document.getElementById('ticketFullBox');
+  box.className = 'ticket-full cat-' + t.cat;
+  box.innerHTML = `
+    <div class="catband">${CATS[t.cat].label} · ${LOTES[t.lote]}</div>
+    <h2 class="display">${esc(t.nome)}</h2>
+    <div class="evt">${esc(config.eventName)}${config.eventDate ? ' · ' + config.eventDate.split('-').reverse().join('/') : ''}</div>
+    <div class="qrbox" id="qrRender"></div>
+    <div class="idline">${t.id}</div>
+    <div class="perfline"></div>
+    <div class="pricebig">${t.cortesia ? '🎁 Ingresso de Cortesia' : fmtBRL(t.preco)}</div>
+    ${(!t.cortesia && restanteTicket(t) > 0) ? `<div style="color:var(--rose); font-size:12px; margin-top:6px;">💰 Falta pagar: ${fmtBRL(restanteTicket(t))}</div>` : ''}
+  `;
+  gerarQRCode(document.getElementById('qrRender'), t.id);
+  document.getElementById('modalTicket').classList.remove('hidden');
+  window.currentTicket = t;
+  document.getElementById('shareHint').textContent = '';
+  const btnW = document.getElementById('btnWhatsapp');
+  btnW.style.display = t.whatsapp ? 'block' : 'none';
+}
+
+function normalizarWhats(numero){
+  let d = numero.replace(/\D/g,'');
+  if(d.length <= 11) d = '55' + d; // adiciona código do Brasil se não tiver
+  return d;
+}
+
+function ticketFileName(t){
+  return 'ingresso-' + t.id + '.png';
+}
+
+async function renderTicketCanvas(){
+  const el = document.getElementById('ticketFullBox');
+  return await html2canvas(el, { backgroundColor: '#1e1733', scale: 2 });
+}
+
+async function baixarTicket(){
+  if(!window.currentTicket) return;
+  const canvas = await renderTicketCanvas();
+  const link = document.createElement('a');
+  link.download = ticketFileName(window.currentTicket);
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+async function compartilharTicket(){
+  if(!window.currentTicket) return;
+  const hint = document.getElementById('shareHint');
+  const canvas = await renderTicketCanvas();
+  canvas.toBlob(async (blob)=>{
+    const file = new File([blob], ticketFileName(window.currentTicket), { type:'image/png' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      try{
+        await navigator.share({
+          files:[file],
+          title:'Ingresso ' + window.currentTicket.nome,
+          text:'Aqui está seu ingresso para ' + config.eventName + '! Apresente este QR code na entrada.'
+        });
+        return;
+      }catch(e){ /* usuário cancelou ou não suportado, cai no fallback */ }
+    }
+    // fallback: baixa a imagem e orienta a enviar manualmente
+    const link = document.createElement('a');
+    link.download = ticketFileName(window.currentTicket);
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    hint.textContent = 'Imagem baixada. Agora é só anexar no WhatsApp da pessoa.';
+  }, 'image/png');
+}
+
+// ---------- lista de ingressos ----------
+function totalPagoTicket(t){
+  if(t.pagamentos === undefined) return t.preco; // ingressos antigos, sem controle de parcelas: considera pago integral
+  return t.pagamentos.reduce((s,p)=>s+p.valor,0);
+}
+function restanteTicket(t){ return Math.max(0, (t.preco||0) - totalPagoTicket(t)); }
+
+async function registrarPagamentoIngresso(id){
+  const t = tickets.find(x=>x.id===id);
+  if(!t) return;
+  if(!t.pagamentos) t.pagamentos = [];
+  const falta = restanteTicket(t);
+  const v = prompt(`Registrar novo pagamento de ${t.nome}\nFalta pagar: ${fmtBRL(falta)}\n\nDigite o valor pago agora:`);
+  if(v===null) return;
+  const valor = parseFloat(v.replace(',','.'));
+  if(!valor || valor<=0){ alert('Valor inválido.'); return; }
+  t.pagamentos.push({ valor, data:new Date().toISOString() });
+  await saveTickets();
+  renderAll();
+}
+window.registrarPagamentoIngresso = registrarPagamentoIngresso;
+
+function renderLista(){
+  const busca = document.getElementById('busca').value.trim().toLowerCase();
+  const lista = document.getElementById('listaIngressos');
+  let filtrados = tickets.filter(t=>{
+    if(filtroAtual==='pendente' && t.checkedIn) return false;
+    if(filtroAtual==='entrou' && !t.checkedIn) return false;
+    if(filtroAtual==='cortesia' && !t.cortesia) return false;
+    if(['solteiro','casal','solteira'].includes(filtroAtual) && t.cat !== filtroAtual) return false;
+    if(busca && !(t.nome.toLowerCase().includes(busca) || t.id.toLowerCase().includes(busca))) return false;
+    return true;
+  });
+  if(filtrados.length===0){
+    lista.innerHTML = `<div class="empty"><div class="display">Nenhum ingresso ainda</div>Venda o primeiro ingresso na aba Vender.</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(t=>{
+    const falta = t.cortesia ? 0 : restanteTicket(t);
+    return `
+    <div class="stub cat-${t.cat}" data-id="${t.id}">
+      <div class="spine"></div>
+      <div class="body">
+        <div class="row1">
+          <div>
+            <div class="name">${esc(t.nome)}</div>
+            <div class="meta">${LOTES[t.lote]} · ${esc(t.pagamento || 'pagamento não informado')}${t.whatsapp ? ' · 📱 ' + esc(t.whatsapp) : ''}</div>
+          </div>
+          <div class="tag">${CATS[t.cat].label}</div>
+        </div>
+        <div class="foot">
+          <div class="id mono">${t.id}</div>
+          <div class="price">${t.cortesia ? '🎁 Cortesia' : fmtBRL(t.preco)}</div>
+          <div class="status ${t.checkedIn?'entrou':'pendente'}">${t.checkedIn?'Entrou':'Pendente'}</div>
+        </div>
+        ${falta > 0 ? `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);">
+          <span style="font-size:12px; color:var(--rose);">💰 Falta pagar: ${fmtBRL(falta)}</span>
+          <button class="btn secondary" style="width:auto; margin:0; padding:8px 12px; font-size:12px;" onclick="event.stopPropagation(); registrarPagamentoIngresso('${t.id}')">Registrar pagamento</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  lista.querySelectorAll('.stub').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const t = tickets.find(x=>x.id===el.dataset.id);
+      if(t) showTicketModal(t);
+    });
+  });
+}
+
+// ---------- resumo ----------
+function renderResumo(){
+  const totalIngressos = tickets.length;
+  const totalReceita = tickets.reduce((s,t)=>s+totalPagoTicket(t),0);
+  const totalAReceberIngressos = tickets.reduce((s,t)=>s+restanteTicket(t),0);
+  const totalEntraram = tickets.filter(t=>t.checkedIn).length;
+  const totalCortesias = tickets.filter(t=>t.cortesia).length;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat"><div class="n">${totalIngressos}</div><div class="l">ingressos vendidos</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalReceita)}</div><div class="l">já recebido</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalAReceberIngressos)}</div><div class="l">falta receber (ingressos)</div></div>
+    <div class="stat"><div class="n">${totalEntraram}</div><div class="l">já entraram</div></div>
+    <div class="stat"><div class="n">${totalIngressos-totalEntraram}</div><div class="l">ainda não entraram</div></div>
+    <div class="stat"><div class="n">${totalCortesias}</div><div class="l">🎁 cortesias distribuídas</div></div>
+  `;
+
+  let html = '<tr><th>Categoria</th><th>Lote</th><th>Qtd</th><th>Total</th></tr>';
+  Object.keys(CATS).forEach(c=>{
+    Object.keys(LOTES).forEach(l=>{
+      const subset = tickets.filter(t=>t.cat===c && t.lote===l);
+      if(subset.length===0) return;
+      const soma = subset.reduce((s,t)=>s+t.preco,0);
+      html += `<tr><td>${CATS[c].label}</td><td>${LOTES[l]}</td><td>${subset.length}</td><td>${fmtBRL(soma)}</td></tr>`;
+    });
+  });
+  if(tickets.length===0) html += '<tr><td colspan="4" style="color:var(--muted);">Nenhuma venda registrada ainda.</td></tr>';
+  document.getElementById('resumoTabela').innerHTML = html;
+}
+
+function renderAll(){
+  renderSegs();
+  renderTabelaPrecos();
+  renderLista();
+  renderResumo();
+  renderSegsCasa();
+  renderTabelaPrecosCasa();
+  renderListaCasa();
+  renderCaixaCasa();
+  renderInd();
+  document.getElementById('eventDateSub').textContent = config.eventDate
+    ? 'Evento em ' + config.eventDate.split('-').reverse().join('/')
+    : 'defina a data do evento em Resumo → Configurar';
+}
+
+// ---------- CASA: cadastro e controle de pagamentos ----------
+function nextCasaNumber(cat){
+  const prefix = { solteiro:'HSOL', casal:'HCAS', solteira:'HSOA' }[cat];
+  const count = casaRecords.filter(r => r.cat === cat).length + 1;
+  return prefix + '-' + String(count).padStart(4,'0');
+}
+
+function renderSegsCasa(){
+  document.querySelectorAll('#catSegCasa button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.cat === selCatCasa);
+  });
+  document.querySelectorAll('#prazoSegCasa button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.prazo === selPrazoCasa);
+  });
+  const cort = document.getElementById('cCortesia').checked;
+  const el = document.getElementById('valorTotalCasa');
+  el.textContent = cort ? 'Cortesia' : fmtBRL(config.casaPrecos[selCatCasa][selPrazoCasa]);
+  el.style.color = cort ? '#6fcf7f' : '';
+  document.getElementById('cEntradaBox').style.display = cort ? 'none' : 'block';
+}
+
+function renderTabelaPrecosCasa(){
+  const tb = document.getElementById('tabelaPrecosCasa');
+  let html = '<tr><th>Categoria</th><th>Até 25/08</th><th>2º · 10/09</th><th>Último</th></tr>';
+  Object.keys(CATS).forEach(c=>{
+    const p = config.casaPrecos[c];
+    html += `<tr><td>${CATS[c].label}</td><td>${fmtBRL(p.p1)}</td><td>${fmtBRL(p.p2)}</td><td>${fmtBRL(p.ultimo)}</td></tr>`;
+  });
+  tb.innerHTML = html;
+}
+
+function totalPago(r){ return (r.pagamentos || []).reduce((s,p)=>s+p.valor,0); }
+function restante(r){ return Math.max(0, r.valorTotal - totalPago(r)); }
+
+async function gerarCasa(){
+  const nome = document.getElementById('cNome').value.trim();
+  if(!nome){ alert('Digite o nome da pessoa.'); return; }
+  const cortesia = document.getElementById('cCortesia').checked;
+  const entradaVal = cortesia ? 0 : (parseFloat(document.getElementById('cEntrada').value.replace(',','.')) || 0);
+  const id = nextCasaNumber(selCatCasa);
+  const valorTotal = cortesia ? 0 : config.casaPrecos[selCatCasa][selPrazoCasa];
+  const registro = {
+    id, nome, cat:selCatCasa, prazo:selPrazoCasa, valorTotal, cortesia,
+    pagamentos: entradaVal > 0 ? [{ valor:entradaVal, data:new Date().toISOString() }] : [],
+    criadoEm: new Date().toISOString()
+  };
+  casaRecords.unshift(registro);
+  await saveCasa();
+  document.getElementById('cNome').value = '';
+  document.getElementById('cEntrada').value = '';
+  document.getElementById('cCortesia').checked = false;
+  renderAll();
+}
+
+async function registrarPagamento(id){
+  const r = casaRecords.find(x=>x.id===id);
+  if(!r) return;
+  const falta = restante(r);
+  const v = prompt(`Registrar novo pagamento de ${r.nome}\nFalta pagar: ${fmtBRL(falta)}\n\nDigite o valor pago agora:`);
+  if(v===null) return;
+  const valor = parseFloat(v.replace(',','.'));
+  if(!valor || valor<=0){ alert('Valor inválido.'); return; }
+  r.pagamentos = r.pagamentos || [];
+  r.pagamentos.push({ valor, data:new Date().toISOString() });
+  await saveCasa();
+  renderAll();
+}
+window.registrarPagamento = registrarPagamento;
+
+function renderListaCasa(){
+  const busca = document.getElementById('buscaCasa').value.trim().toLowerCase();
+  const lista = document.getElementById('listaCasa');
+  let filtrados = casaRecords.filter(r => !busca || r.nome.toLowerCase().includes(busca) || r.id.toLowerCase().includes(busca));
+  if(filtrados.length===0){
+    lista.innerHTML = `<div class="empty"><div class="display">Ninguém cadastrado na casa ainda</div>Cadastre a primeira pessoa acima.</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(r=>{
+    const pago = totalPago(r);
+    const falta = restante(r);
+    const quitado = falta <= 0;
+    return `
+    <div class="stub cat-${r.cat}">
+      <div class="spine"></div>
+      <div class="body">
+        <div class="row1">
+          <div>
+            <div class="name">${esc(r.nome)}</div>
+            <div class="meta">${r.cortesia ? '🎁 Cortesia' : CASA_PRAZOS[r.prazo] + ' · Total ' + fmtBRL(r.valorTotal)}</div>
+          </div>
+          <div class="tag">${CATS[r.cat].label}</div>
+        </div>
+        <div class="foot">
+          <div class="id mono">${r.id}</div>
+          <div class="price">${r.cortesia ? '🎁 Cortesia' : 'Pago ' + fmtBRL(pago)}</div>
+          <div class="status ${quitado?'entrou':'pendente'}">${r.cortesia ? 'Cortesia' : (quitado ? 'Quitado' : 'Falta ' + fmtBRL(falta))}</div>
+        </div>
+        ${quitado ? '' : `<button class="btn secondary" style="margin-top:10px;" onclick="registrarPagamento('${r.id}')">Registrar pagamento</button>`}
+        <button class="btn secondary" style="margin-top:8px;" onclick="abrirEdicaoCasa('${r.id}')">Editar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCaixaCasa(){
+  const totalEsperado = casaRecords.reduce((s,r)=>s+r.valorTotal,0);
+  const totalRecebido = casaRecords.reduce((s,r)=>s+totalPago(r),0);
+  const totalAReceber = totalEsperado - totalRecebido;
+  document.getElementById('statGridCasa').innerHTML = `
+    <div class="stat"><div class="n">${casaRecords.length}</div><div class="l">pessoas na casa</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalRecebido)}</div><div class="l">já recebido (caixa casa)</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalAReceber)}</div><div class="l">ainda a receber</div></div>
+    <div class="stat"><div class="n">${fmtBRL(totalEsperado)}</div><div class="l">valor total esperado</div></div>
+    <div class="stat"><div class="n">${casaRecords.filter(r=>r.cortesia).length}</div><div class="l">🎁 cortesias na casa</div></div>
+  `;
+}
+
+function abrirModalPrecosCasa(){
+  const form = document.getElementById('formPrecosCasa');
+  let html = '';
+  Object.keys(CATS).forEach(c=>{
+    html += `<label>${CATS[c].label} — Até 25/08 / 2º · 10/09 / Último</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" class="mono precoCasaInput" data-cat="${c}" data-prazo="p1" value="${config.casaPrecos[c].p1}">
+        <input type="text" class="mono precoCasaInput" data-cat="${c}" data-prazo="p2" value="${config.casaPrecos[c].p2}">
+        <input type="text" class="mono precoCasaInput" data-cat="${c}" data-prazo="ultimo" value="${config.casaPrecos[c].ultimo}">
+      </div>`;
+  });
+  form.innerHTML = html;
+  document.getElementById('modalPrecosCasa').classList.remove('hidden');
+}
+
+// ---------- CASA: editar cadastro existente ----------
+let editandoCasaId = null;
+
+function abrirEdicaoCasa(id){
+  const r = casaRecords.find(x=>x.id===id);
+  if(!r) return;
+  editandoCasaId = id;
+  document.getElementById('eNome').value = r.nome;
+  document.querySelectorAll('#catSegEditar button').forEach(b=>b.classList.toggle('on', b.dataset.cat===r.cat));
+  document.querySelectorAll('#prazoSegEditar button').forEach(b=>b.classList.toggle('on', b.dataset.prazo===r.prazo));
+  document.getElementById('eCortesia').checked = !!r.cortesia;
+  updateValorTotalEditar();
+  document.getElementById('modalEditarCasa').classList.remove('hidden');
+}
+window.abrirEdicaoCasa = abrirEdicaoCasa;
+
+function updateValorTotalEditar(){
+  const cat = document.querySelector('#catSegEditar button.on')?.dataset.cat || 'solteiro';
+  const prazo = document.querySelector('#prazoSegEditar button.on')?.dataset.prazo || 'p1';
+  document.getElementById('valorTotalEditar').textContent =
+    document.getElementById('eCortesia').checked ? 'Cortesia' : fmtBRL(config.casaPrecos[cat][prazo]);
+}
+
+document.getElementById('catSegEditar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#catSegEditar button').forEach(x=>x.classList.toggle('on', x===b));
+  updateValorTotalEditar();
+});
+document.getElementById('prazoSegEditar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#prazoSegEditar button').forEach(x=>x.classList.toggle('on', x===b));
+  updateValorTotalEditar();
+});
+document.getElementById('fecharModalEditarCasa').addEventListener('click', ()=>{
+  document.getElementById('modalEditarCasa').classList.add('hidden');
+  editandoCasaId = null;
+});
+document.getElementById('btnSalvarEdicaoCasa').addEventListener('click', async ()=>{
+  const r = casaRecords.find(x=>x.id===editandoCasaId);
+  if(!r) return;
+  const novoNome = document.getElementById('eNome').value.trim();
+  if(!novoNome){ alert('Digite o nome.'); return; }
+  const novoCat = document.querySelector('#catSegEditar button.on')?.dataset.cat;
+  const novoPrazo = document.querySelector('#prazoSegEditar button.on')?.dataset.prazo;
+  r.nome = novoNome;
+  r.cat = novoCat;
+  r.prazo = novoPrazo;
+  r.cortesia = document.getElementById('eCortesia').checked;
+  r.valorTotal = r.cortesia ? 0 : config.casaPrecos[novoCat][novoPrazo];
+  await saveCasa();
+  renderAll();
+  document.getElementById('modalEditarCasa').classList.add('hidden');
+  editandoCasaId = null;
+});
+document.getElementById('btnExcluirCasa').addEventListener('click', async ()=>{
+  const r = casaRecords.find(x=>x.id===editandoCasaId);
+  if(!r) return;
+  if(!confirm(`Excluir o cadastro de ${r.nome}? Isso não pode ser desfeito.`)) return;
+  casaRecords = casaRecords.filter(x=>x.id!==editandoCasaId);
+  await saveCasa();
+  renderAll();
+  document.getElementById('modalEditarCasa').classList.add('hidden');
+  editandoCasaId = null;
+});
+
+// ---------- INDICAÇÕES: crédito por indicação, QR Code e consumo ----------
+let indicacoes = [];
+let consumoId = null;
+let editandoIndId = null;
+let qrIndId = null;
+let indScanner = null;
+let indScanLock = false;
+
+function round2(v){ return Math.round((Number(v) || 0) * 100) / 100; }
+function fmtMoney(v){ return 'R$ ' + round2(v).toFixed(2).replace('.', ','); }
+function parseValor(s){
+  const n = parseFloat(String(s == null ? '' : s).replace(/\s/g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+function normInd(r){
+  r.indicados = toArr(r.indicados);
+  r.gastos = toArr(r.gastos);
+  r.valorUnit = Number(r.valorUnit) || 0;
+  return r;
+}
+function creditoInd(r){ return round2(r.indicados.length * r.valorUnit); }
+function gastoInd(r){ return round2(r.gastos.reduce((s,g)=>s+(Number(g.valor)||0),0)); }
+function saldoInd(r){ return Math.max(0, round2(creditoInd(r) - gastoInd(r))); }
+function getInd(id){
+  const k = String(id).trim().toLowerCase();
+  return indicacoes.find(x => String(x.id).toLowerCase() === k);
+}
+function nextIndId(){
+  const max = indicacoes.reduce((m,r)=>Math.max(m, parseInt(String(r.id).replace(/\D/g,''),10) || 0), 0);
+  return 'IND-' + String(max + 1).padStart(4, '0');
+}
+function falhaIndicacao(e){
+  erroBanco(e);
+  alert('⚠️ Não foi possível salvar. O banco de dados recusou a gravação.');
+}
+
+function atualizarPreviewInd(){
+  const q = parseInt(document.getElementById('iQtd').value, 10) || 0;
+  const v = parseValor(document.getElementById('iValor').value);
+  document.getElementById('iPreview').textContent = fmtMoney(q * v);
+}
+
+async function cadastrarInd(){
+  const nome = document.getElementById('iNome').value.trim();
+  if(!nome){ alert('Digite o nome da pessoa.'); return; }
+  const valorUnit = parseValor(document.getElementById('iValor').value);
+  if(valorUnit <= 0){ alert('Informe o valor por indicação (ex: 20).'); return; }
+  const qtd = Math.max(0, parseInt(document.getElementById('iQtd').value, 10) || 0);
+  const whatsapp = document.getElementById('iWhats').value.trim();
+  const agora = new Date().toISOString();
+  const id = nextIndId();
+  const rec = { id, nome, whatsapp, valorUnit, criadoEm: agora };
+  if(qtd > 0) rec.indicados = Array.from({length: qtd}, () => ({ nome:'', data: agora }));
+  try{
+    const res = await db.ref('indicacoes/' + id).transaction(cur => cur ? undefined : rec);
+    if(!res.committed){ alert('Esse código já foi usado por outro celular agora. Tente cadastrar de novo.'); return; }
+  }catch(e){ falhaIndicacao(e); return; }
+  document.getElementById('iNome').value = '';
+  document.getElementById('iWhats').value = '';
+  document.getElementById('iQtd').value = '0';
+  atualizarPreviewInd();
+  abrirQrInd(id, normInd(Object.assign({}, rec)));
+}
+
+function renderInd(){
+  const q = (document.getElementById('buscaInd').value || '').trim().toLowerCase();
+  const credito = indicacoes.reduce((s,r)=>s+creditoInd(r),0);
+  const gasto = indicacoes.reduce((s,r)=>s+gastoInd(r),0);
+  document.getElementById('statGridInd').innerHTML = `
+    <div class="stat"><div class="n">${indicacoes.length}</div><div class="l">pessoas cadastradas</div></div>
+    <div class="stat"><div class="n">${fmtMoney(credito)}</div><div class="l">crédito total gerado</div></div>
+    <div class="stat"><div class="n">${fmtMoney(gasto)}</div><div class="l">já consumido</div></div>
+    <div class="stat"><div class="n">${fmtMoney(credito - gasto)}</div><div class="l">saldo em aberto</div></div>
+  `;
+  const lista = document.getElementById('listaInd');
+  const filtrados = indicacoes.filter(r => !q || String(r.nome).toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q));
+  if(filtrados.length === 0){
+    lista.innerHTML = `<div class="empty"><div class="display">Nenhuma indicação cadastrada</div>Cadastre a primeira pessoa acima.</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(r=>{
+    const cred = creditoInd(r), saldo = saldoInd(r);
+    const pct = cred > 0 ? Math.max(0, Math.min(100, saldo / cred * 100)) : 0;
+    const id = esc(r.id);
+    return `
+    <div class="stub cat-ind">
+      <div class="spine"></div>
+      <div class="body">
+        <div class="row1">
+          <div>
+            <div class="name">${esc(r.nome)}</div>
+            <div class="meta">${r.indicados.length} indicação(ões) × ${fmtMoney(r.valorUnit)}${r.whatsapp ? ' · 📱 ' + esc(r.whatsapp) : ''}</div>
+          </div>
+          <div class="tag">INDICAÇÃO</div>
+        </div>
+        <div class="foot">
+          <div class="id mono">${id}</div>
+          <div class="price">Crédito ${fmtMoney(cred)}</div>
+          <div class="status ${saldo > 0 ? 'saldo' : 'entrou'}">${saldo > 0 ? 'Saldo ' + fmtMoney(saldo) : 'Zerado'}</div>
+        </div>
+        <div class="bar"><div style="width:${pct}%"></div></div>
+        <div class="ind-actions">
+          <button class="btn secondary" onclick="addIndicacao('${id}')">+ Indicação</button>
+          <button class="btn secondary" onclick="abrirConsumo('${id}')">Consumo</button>
+          <button class="btn secondary" onclick="abrirQrInd('${id}')">QR Code</button>
+          <button class="btn secondary" onclick="abrirEdicaoInd('${id}')">Editar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addIndicacao(id){
+  const r = getInd(id); if(!r) return;
+  const nomeInd = prompt(`Nova indicação de ${r.nome} (+${fmtMoney(r.valorUnit)} de crédito).\nNome de quem foi indicado (opcional):`);
+  if(nomeInd === null) return;
+  try{
+    await db.ref('indicacoes/' + r.id + '/indicados').transaction(cur => {
+      const a = toArr(cur);
+      a.push({ nome: nomeInd.trim(), data: new Date().toISOString() });
+      return a;
+    });
+  }catch(e){ falhaIndicacao(e); }
+}
+
+// ---- QR Code da pessoa ----
+function abrirQrInd(id, fallback){
+  const r = getInd(id) || fallback; if(!r) return;
+  qrIndId = r.id;
+  document.getElementById('indTicketBox').innerHTML = `
+    <div class="catband">Crédito de indicação</div>
+    <h2 class="display">${esc(r.nome)}</h2>
+    <div class="evt">${esc(config.eventName)}</div>
+    <div class="qrbox" id="qrRenderInd"></div>
+    <div class="idline">${esc(r.id)}</div>
+    <div class="perfline"></div>
+    <div style="font-size:13px;color:var(--muted);">Apresente este QR Code para usar seu crédito</div>`;
+  gerarQRCode(document.getElementById('qrRenderInd'), r.id);
+  document.getElementById('btnWhatsQrInd').style.display = r.whatsapp ? 'block' : 'none';
+  document.getElementById('qrIndHint').textContent = '';
+  document.getElementById('modalQrInd').classList.remove('hidden');
+}
+window.abrirQrInd = abrirQrInd;
+
+async function baixarQrInd(){
+  const r = getInd(qrIndId); if(!r) return;
+  const canvas = await html2canvas(document.getElementById('indTicketBox'), { backgroundColor:'#1e1733', scale:2 });
+  const link = document.createElement('a');
+  link.download = 'credito-' + r.id + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+async function whatsQrInd(){
+  const r = getInd(qrIndId); if(!r || !r.whatsapp) return;
+  await baixarQrInd();
+  const msg = encodeURIComponent(
+    `Oi, ${r.nome}! 🎉 Você tem ${fmtMoney(saldoInd(r))} de crédito de indicação para usar em ${config.eventName}.\n` +
+    `Código: ${r.id}\n\nAnexe a imagem do QR Code que acabou de baixar aqui na conversa. Apresente o QR na hora de consumir!`
+  );
+  window.open(`https://wa.me/${normalizarWhats(r.whatsapp)}?text=${msg}`, '_blank');
+  document.getElementById('qrIndHint').textContent = 'Imagem baixada e WhatsApp aberto — agora é só anexar a imagem na conversa.';
+}
+
+// ---- Consumo (scanner + baixa de saldo) ----
+function abrirConsumo(id){
+  const r = getInd(id);
+  if(!r){ alert('Indicação não encontrada: ' + id); return; }
+  consumoId = r.id;
+  document.getElementById('kForm').style.display = 'block';
+  document.getElementById('kResultado').style.display = 'none';
+  document.getElementById('kValor').value = '';
+  renderConsumo();
+  document.getElementById('modalConsumo').classList.remove('hidden');
+  setTimeout(()=>{ try{ document.getElementById('kValor').focus(); }catch(e){} }, 200);
+}
+window.abrirConsumo = abrirConsumo;
+
+function renderConsumo(){
+  const r = getInd(consumoId); if(!r) return;
+  document.getElementById('kNome').textContent = r.nome;
+  document.getElementById('kCredito').textContent = fmtMoney(creditoInd(r));
+  document.getElementById('kGasto').textContent = fmtMoney(gastoInd(r));
+  const saldo = saldoInd(r);
+  const elSaldo = document.getElementById('kSaldo');
+  elSaldo.textContent = fmtMoney(saldo);
+  elSaldo.style.color = saldo > 0 ? '' : 'var(--rose)';
+  const ult = r.gastos.slice(-5).reverse();
+  document.getElementById('kHist').innerHTML = ult.length
+    ? '<div style="margin-bottom:4px;">Últimos consumos</div>' + ult.map(g =>
+        `<div class="kv"><span>${new Date(g.data).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</span><span>- ${fmtMoney(g.valor)}</span></div>`).join('')
+    : '';
+  document.getElementById('kDesfazer').style.display = r.gastos.length ? 'block' : 'none';
+  document.getElementById('kConfirmar').disabled = saldo <= 0;
+  document.getElementById('kTudo').disabled = saldo <= 0;
+}
+
+async function confirmarConsumo(){
+  const r = getInd(consumoId); if(!r) return;
+  const valor = round2(parseValor(document.getElementById('kValor').value));
+  if(valor <= 0){ alert('Digite o valor gasto.'); return; }
+  const saldoAntes = saldoInd(r);
+  if(valor > saldoAntes + 0.001){
+    alert(`Saldo insuficiente.\nSaldo atual: ${fmtMoney(saldoAntes)}\nValor informado: ${fmtMoney(valor)}`);
+    return;
+  }
+  const cred = creditoInd(r);
+  try{
+    const res = await db.ref('indicacoes/' + r.id + '/gastos').transaction(cur => {
+      const a = toArr(cur);
+      const ja = round2(a.reduce((s,g)=>s+(Number(g.valor)||0),0));
+      if(round2(ja + valor) > cred + 0.001) return; // outro celular já consumiu: aborta
+      a.push({ valor, data: new Date().toISOString() });
+      return a;
+    });
+    if(!res.committed){
+      alert('Saldo insuficiente — outro celular pode ter registrado um consumo agora. Reabra para ver o saldo atual.');
+      return;
+    }
+    const total = round2(toArr(res.snapshot.val()).reduce((s,g)=>s+(Number(g.valor)||0),0));
+    const novo = Math.max(0, round2(cred - total));
+    document.getElementById('kForm').style.display = 'none';
+    document.getElementById('kResultado').style.display = 'block';
+    document.getElementById('kResTitulo').textContent = '✅ Consumo registrado — ' + fmtMoney(valor);
+    document.getElementById('kResSaldo').textContent = novo > 0 ? fmtMoney(novo) : 'Saldo zerado';
+    document.getElementById('kResSub').textContent = novo > 0 ? 'saldo restante de ' + r.nome : r.nome + ' usou todo o crédito';
+  }catch(e){ falhaIndicacao(e); }
+}
+
+async function desfazerConsumo(){
+  const r = getInd(consumoId); if(!r || !r.gastos.length) return;
+  const ultimo = r.gastos[r.gastos.length - 1];
+  if(!confirm(`Desfazer o último consumo de ${fmtMoney(ultimo.valor)}?`)) return;
+  try{
+    await db.ref('indicacoes/' + r.id + '/gastos').transaction(cur => {
+      const a = toArr(cur);
+      a.pop();
+      return a.length ? a : null;
+    });
+  }catch(e){ falhaIndicacao(e); }
+}
+
+async function abrirScanInd(){
+  const box = document.getElementById('qrReaderInd');
+  box.innerHTML = '';
+  document.getElementById('modalScanInd').classList.remove('hidden');
+  if(typeof Html5Qrcode === 'undefined'){
+    box.innerHTML = '<p style="color:var(--muted);font-size:13px;">Câmera indisponível neste navegador. Use o botão "Consumo" no cartão da pessoa.</p>';
+    return;
+  }
+  if(html5QrCode){ try{ await html5QrCode.stop(); }catch(e){} }
+  indScanLock = false;
+  indScanner = new Html5Qrcode('qrReaderInd');
+  try{
+    await indScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, async (txt)=>{
+      if(indScanLock) return;
+      indScanLock = true;
+      await fecharScanInd();
+      const code = String(txt).trim();
+      if(!/^IND-/i.test(code)){ alert('Esse QR Code não é de crédito de indicação.'); return; }
+      abrirConsumo(code);
+    });
+  }catch(e){
+    box.innerHTML = '<p style="color:var(--muted);font-size:13px;">Não foi possível acessar a câmera. Use o botão "Consumo" no cartão da pessoa.</p>';
+  }
+}
+async function fecharScanInd(){
+  document.getElementById('modalScanInd').classList.add('hidden');
+  if(indScanner){
+    try{ await indScanner.stop(); }catch(e){}
+    try{ indScanner.clear(); }catch(e){}
+    indScanner = null;
+  }
+}
+function fecharConsumo(){
+  document.getElementById('modalConsumo').classList.add('hidden');
+  consumoId = null;
+}
+
+// ---- Editar cadastro ----
+function abrirEdicaoInd(id){
+  const r = getInd(id); if(!r) return;
+  editandoIndId = r.id;
+  document.getElementById('eiNome').value = r.nome;
+  document.getElementById('eiWhats').value = r.whatsapp || '';
+  document.getElementById('eiValor').value = r.valorUnit;
+  document.getElementById('eiResumo').textContent =
+    `${r.indicados.length} indicação(ões) · crédito ${fmtMoney(creditoInd(r))} · consumido ${fmtMoney(gastoInd(r))}. ` +
+    `Mudar o valor por indicação recalcula o crédito de todas as indicações.`;
+  document.getElementById('modalEditarInd').classList.remove('hidden');
+}
+window.abrirEdicaoInd = abrirEdicaoInd;
+
+async function salvarEdicaoInd(){
+  const r = getInd(editandoIndId); if(!r) return;
+  const nome = document.getElementById('eiNome').value.trim();
+  if(!nome){ alert('Digite o nome.'); return; }
+  const valorUnit = parseValor(document.getElementById('eiValor').value);
+  if(valorUnit <= 0){ alert('Informe um valor por indicação maior que zero.'); return; }
+  if(round2(r.indicados.length * valorUnit) < gastoInd(r)){
+    alert('Não dá pra salvar: o crédito ficaria menor do que o que já foi consumido.');
+    return;
+  }
+  try{
+    await db.ref('indicacoes/' + r.id).update({ nome, whatsapp: document.getElementById('eiWhats').value.trim(), valorUnit });
+    document.getElementById('modalEditarInd').classList.add('hidden');
+    editandoIndId = null;
+  }catch(e){ falhaIndicacao(e); }
+}
+async function removerUmaIndicacao(){
+  const r = getInd(editandoIndId); if(!r) return;
+  if(r.indicados.length <= 0){ alert('Essa pessoa não tem indicações para remover.'); return; }
+  if(round2((r.indicados.length - 1) * r.valorUnit) < gastoInd(r)){
+    alert('Não dá pra remover: o crédito ficaria menor do que o que já foi consumido.');
+    return;
+  }
+  try{
+    await db.ref('indicacoes/' + r.id + '/indicados').transaction(cur => {
+      const a = toArr(cur);
+      a.pop();
+      return a.length ? a : null;
+    });
+    document.getElementById('modalEditarInd').classList.add('hidden');
+    editandoIndId = null;
+  }catch(e){ falhaIndicacao(e); }
+}
+async function excluirInd(){
+  const r = getInd(editandoIndId); if(!r) return;
+  if(!confirm(`Excluir o cadastro de ${r.nome}? O crédito e o histórico de consumo serão apagados.`)) return;
+  try{
+    await db.ref('indicacoes/' + r.id).remove();
+    document.getElementById('modalEditarInd').classList.add('hidden');
+    editandoIndId = null;
+  }catch(e){ falhaIndicacao(e); }
+}
+
+function baixarBackup(){
+  const dados = { exportadoEm: new Date().toISOString(), config, tickets, casa: casaRecords, indicacoes };
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'backup-controle-ingressos-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+window.addIndicacao = addIndicacao;
+
+// ---------- check-in ----------
+function processarCodigo(codigo){
+  if(/^IND-/i.test(String(codigo).trim())){
+    if(document.getElementById('modalConsumo').classList.contains('hidden')) abrirConsumo(String(codigo).trim());
+    return;
+  }
+  const res = document.getElementById('scanResultado');
+  const t = tickets.find(x=>x.id.toLowerCase() === codigo.trim().toLowerCase());
+  if(!t){
+    res.innerHTML = `<div class="scan-result scan-bad">Código não encontrado: ${esc(codigo)}</div>`;
+    return;
+  }
+  if(t.checkedIn){
+    res.innerHTML = `<div class="scan-result scan-used">⚠️ ${esc(t.nome)} (${esc(t.id)}) já entrou às ${new Date(t.checkinTime).toLocaleTimeString('pt-BR')}</div>`;
+    return;
+  }
+  t.checkedIn = true;
+  t.checkinTime = new Date().toISOString();
+  saveTickets();
+  renderAll();
+  res.innerHTML = `<div class="scan-result scan-ok">✅ Entrada confirmada: ${esc(t.nome)} — ${CATS[t.cat].label}</div>`;
+}
+
+function startScanner(){
+  const scanBox = document.getElementById('scanBox');
+  if(typeof Html5Qrcode === 'undefined'){
+    scanBox.innerHTML = '<p style="color:var(--muted);font-size:13px;">Câmera indisponível neste dispositivo/navegador. Use o código manual abaixo.</p>';
+    return;
+  }
+  scanBox.innerHTML = '<div id="qrReader"></div>';
+  html5QrCode = new Html5Qrcode("qrReader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 220 },
+    (decodedText)=>{ processarCodigo(decodedText); }
+  ).catch(()=>{
+    scanBox.innerHTML = '<p style="color:var(--muted);font-size:13px;">Não foi possível acessar a câmera. Use o código manual abaixo.</p>';
+  });
+}
+
+// ---------- editar preços ----------
+function abrirModalPrecos(){
+  const form = document.getElementById('formPrecos');
+  let html = '';
+  Object.keys(CATS).forEach(c=>{
+    html += `<label>${CATS[c].label} — 1º Lote / 2º Lote / Na hora</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" class="mono precoInput" data-cat="${c}" data-lote="lote1" value="${config.precos[c].lote1}">
+        <input type="text" class="mono precoInput" data-cat="${c}" data-lote="lote2" value="${config.precos[c].lote2}">
+        <input type="text" class="mono precoInput" data-cat="${c}" data-lote="hora" value="${config.precos[c].hora}">
+      </div>`;
+  });
+  form.innerHTML = html;
+  document.getElementById('modalPrecos').classList.remove('hidden');
+}
+
+// ---------- events ----------
+document.getElementById('catSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selCat = b.dataset.cat; renderSegs();
+});
+document.getElementById('loteSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selLote = b.dataset.lote; renderSegs();
+});
+document.getElementById('fCortesia').addEventListener('change', updatePrecoAtual);
+document.getElementById('btnGerar').addEventListener('click', gerarIngresso);
+document.getElementById('btnEditarPrecos').addEventListener('click', abrirModalPrecos);
+document.getElementById('fecharModalPrecos').addEventListener('click', ()=>document.getElementById('modalPrecos').classList.add('hidden'));
+document.getElementById('btnSalvarPrecos').addEventListener('click', async ()=>{
+  document.querySelectorAll('.precoInput').forEach(inp=>{
+    const v = parseFloat(inp.value.replace(',','.')) || 0;
+    config.precos[inp.dataset.cat][inp.dataset.lote] = v;
+  });
+  await saveConfig();
+  renderAll();
+  document.getElementById('modalPrecos').classList.add('hidden');
+});
+
+document.getElementById('fecharModal').addEventListener('click', ()=>document.getElementById('modalTicket').classList.add('hidden'));
+async function enviarPeloWhatsapp(){
+  const t = window.currentTicket;
+  if(!t || !t.whatsapp) return;
+  const hint = document.getElementById('shareHint');
+
+  // baixa a imagem do ingresso primeiro, pra ela ficar pronta pra anexar
+  const canvas = await renderTicketCanvas();
+  const link = document.createElement('a');
+  link.download = ticketFileName(t);
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+
+  const numero = normalizarWhats(t.whatsapp);
+  const msg = encodeURIComponent(
+    `Oi, ${t.nome}! Aqui está seu ingresso para ${config.eventName} 🎟️\n` +
+    `Categoria: ${CATS[t.cat].label} — ${LOTES[t.lote]}\n` +
+    `Código: ${t.id}\n\n` +
+    `Anexe a imagem do ingresso que acabou de baixar aqui na conversa. Apresente o QR code na entrada!`
+  );
+  window.open(`https://wa.me/${numero}?text=${msg}`, '_blank');
+  hint.textContent = 'Imagem baixada e WhatsApp aberto — agora é só anexar a imagem na conversa.';
+}
+
+document.getElementById('btnWhatsapp').addEventListener('click', enviarPeloWhatsapp);
+document.getElementById('btnImprimir').addEventListener('click', ()=>window.print());
+document.getElementById('btnBaixar').addEventListener('click', baixarTicket);
+document.getElementById('btnCompartilhar').addEventListener('click', compartilharTicket);
+
+document.getElementById('busca').addEventListener('input', renderLista);
+document.getElementById('filtros').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  filtroAtual = b.dataset.f;
+  document.querySelectorAll('#filtros button').forEach(x=>x.classList.toggle('on', x===b));
+  renderLista();
+});
+
+document.getElementById('btnScan').addEventListener('click', startScanner);
+document.getElementById('btnConfirmarManual').addEventListener('click', ()=>{
+  const v = document.getElementById('codigoManual').value;
+  if(v.trim()) processarCodigo(v);
+});
+
+document.getElementById('eventName').addEventListener('change', async e=>{
+  config.eventName = e.target.value || 'Meu Evento';
+  await saveConfig();
+});
+document.getElementById('btnSalvarCfg').addEventListener('click', async ()=>{
+  config.eventDate = document.getElementById('cfgDataEvento').value;
+  config.lote1Ini = document.getElementById('cfgLote1Ini').value;
+  config.lote1Fim = document.getElementById('cfgLote1Fim').value;
+  await saveConfig();
+  selLote = sugerirLote();
+  renderAll();
+  alert('Configuração salva.');
+});
+document.getElementById('btnLimparTudo').addEventListener('click', async ()=>{
+  if(!confirm('Isso vai apagar TODOS os ingressos salvos. Tem certeza?')) return;
+  tickets = [];
+  await saveTickets();
+  renderAll();
+});
+
+document.getElementById('catSegCasa').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selCatCasa = b.dataset.cat; renderSegsCasa();
+});
+document.getElementById('prazoSegCasa').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  selPrazoCasa = b.dataset.prazo; renderSegsCasa();
+});
+document.getElementById('btnGerarCasa').addEventListener('click', gerarCasa);
+document.getElementById('cCortesia').addEventListener('change', renderSegsCasa);
+document.getElementById('eCortesia').addEventListener('change', updateValorTotalEditar);
+document.getElementById('buscaCasa').addEventListener('input', renderListaCasa);
+document.getElementById('btnEditarPrecosCasa').addEventListener('click', abrirModalPrecosCasa);
+document.getElementById('fecharModalPrecosCasa').addEventListener('click', ()=>document.getElementById('modalPrecosCasa').classList.add('hidden'));
+document.getElementById('btnSalvarPrecosCasa').addEventListener('click', async ()=>{
+  document.querySelectorAll('.precoCasaInput').forEach(inp=>{
+    const v = parseFloat(inp.value.replace(',','.')) || 0;
+    config.casaPrecos[inp.dataset.cat][inp.dataset.prazo] = v;
+  });
+  await saveConfig();
+  renderAll();
+  document.getElementById('modalPrecosCasa').classList.add('hidden');
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view !== 'checkin' && html5QrCode){
+      html5QrCode.stop().catch(()=>{});
+    }
+  });
+});
+
+// ---- eventos: indicações ----
+document.getElementById('iQtd').addEventListener('input', atualizarPreviewInd);
+document.getElementById('iValor').addEventListener('input', atualizarPreviewInd);
+document.getElementById('btnCadInd').addEventListener('click', cadastrarInd);
+document.getElementById('buscaInd').addEventListener('input', renderInd);
+document.getElementById('btnScanInd').addEventListener('click', abrirScanInd);
+document.getElementById('fecharScanInd').addEventListener('click', fecharScanInd);
+document.getElementById('fecharModalQrInd').addEventListener('click', ()=>document.getElementById('modalQrInd').classList.add('hidden'));
+document.getElementById('btnBaixarQrInd').addEventListener('click', baixarQrInd);
+document.getElementById('btnWhatsQrInd').addEventListener('click', whatsQrInd);
+document.getElementById('kConfirmar').addEventListener('click', confirmarConsumo);
+document.getElementById('kValor').addEventListener('keydown', e=>{ if(e.key === 'Enter') confirmarConsumo(); });
+document.getElementById('kTudo').addEventListener('click', ()=>{
+  const r = getInd(consumoId); if(!r) return;
+  document.getElementById('kValor').value = String(saldoInd(r)).replace('.', ',');
+});
+document.getElementById('kDesfazer').addEventListener('click', desfazerConsumo);
+document.getElementById('fecharConsumo').addEventListener('click', fecharConsumo);
+document.getElementById('kFechar').addEventListener('click', fecharConsumo);
+document.getElementById('kProximo').addEventListener('click', ()=>{ fecharConsumo(); abrirScanInd(); });
+document.getElementById('fecharModalEditarInd').addEventListener('click', ()=>{ document.getElementById('modalEditarInd').classList.add('hidden'); editandoIndId = null; });
+document.getElementById('btnSalvarInd').addEventListener('click', salvarEdicaoInd);
+document.getElementById('btnRemoverIndicacao').addEventListener('click', removerUmaIndicacao);
+document.getElementById('btnExcluirInd').addEventListener('click', excluirInd);
+document.getElementById('btnBackup').addEventListener('click', baixarBackup);
+
+// ---------- init ----------
+selLote = sugerirLote();
+loadAll();
+
+})();
+</script>
+</body>
+</html>
