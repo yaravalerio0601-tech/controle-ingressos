@@ -551,6 +551,58 @@
   </div>
 </div>
 
+<!-- MODAL: editar ingresso -->
+<div class="overlay hidden" id="modalEditarTicket">
+  <div class="modal">
+    <div class="close"><button id="fecharEditarTicket">✕</button></div>
+    <h3 class="display" style="margin:0 0 4px;">Editar ingresso</h3>
+    <p id="etCodigo" class="mono" style="color:var(--muted);font-size:12px;margin:0 0 12px;"></p>
+
+    <label>Nome completo</label>
+    <input type="text" id="etNome" />
+
+    <label>Categoria</label>
+    <div class="segmented" id="etCatSeg">
+      <button class="sel-solteiro" data-cat="solteiro">Solteiro</button>
+      <button class="sel-casal" data-cat="casal">Casal</button>
+      <button class="sel-solteira" data-cat="solteira">Solteira</button>
+    </div>
+
+    <label>Lote</label>
+    <div class="segmented" id="etLoteSeg">
+      <button data-lote="lote1">1º Lote</button>
+      <button data-lote="lote2">2º Lote</button>
+      <button data-lote="hora">Na Hora</button>
+    </div>
+
+    <label>Forma de pagamento</label>
+    <select id="etPagamento">
+      <option value="">Não informado</option>
+      <option value="Pix">Pix</option>
+      <option value="Dinheiro">Dinheiro</option>
+      <option value="Cartão">Cartão</option>
+    </select>
+
+    <label>WhatsApp</label>
+    <input type="text" id="etWhats" class="mono" inputmode="tel" />
+
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+      <input type="checkbox" id="etCortesia" style="width:auto; accent-color:var(--gold);" />
+      <span>Ingresso de cortesia (sem cobrança)</span>
+    </label>
+
+    <div class="price-row">
+      <div class="lbl">Novo valor do ingresso</div>
+      <div class="val" id="etPreco">R$ 0</div>
+    </div>
+    <p style="color:var(--muted); font-size:11.5px; margin-top:6px;">O código e o QR Code do ingresso não mudam, então o QR que você já enviou continua valendo. Pagamentos já registrados são mantidos.</p>
+
+    <button class="btn" id="etSalvar" style="margin-top:16px;">Salvar alterações</button>
+    <button class="btn secondary" id="etDesmarcar" style="margin-top:10px;">Desmarcar entrada (voltar para "não entrou")</button>
+    <button class="btn danger" id="etExcluir" style="margin-top:10px;">Excluir este ingresso</button>
+  </div>
+</div>
+
 <!-- MODAL: editar registro casa -->
 <div class="overlay hidden" id="modalEditarCasa">
   <div class="modal">
@@ -769,8 +821,10 @@ function sugerirLote(){
 }
 
 function nextTicketNumber(cat){
-  const count = tickets.filter(t => t.cat === cat).length + 1;
-  return CATS[cat].prefix + '-' + String(count).padStart(4,'0');
+  // maior número já usado com este prefixo (excluir ou trocar categoria não pode gerar código repetido)
+  const pre = CATS[cat].prefix + '-';
+  const max = tickets.reduce((m,t)=> String(t.id).startsWith(pre) ? Math.max(m, parseInt(String(t.id).slice(pre.length),10) || 0) : m, 0);
+  return pre + String(max + 1).padStart(4,'0');
 }
 
 function updatePrecoAtual(){
@@ -971,6 +1025,7 @@ function renderLista(){
           <span style="font-size:12px; color:var(--rose);">💰 Falta pagar: ${fmtBRL(falta)}</span>
           <button class="btn secondary" style="width:auto; margin:0; padding:8px 12px; font-size:12px;" onclick="event.stopPropagation(); registrarPagamentoIngresso('${t.id}')">Registrar pagamento</button>
         </div>` : ''}
+        <button class="btn secondary" style="margin-top:10px; padding:9px;" onclick="event.stopPropagation(); abrirEdicaoTicket('${t.id}')">✏️ Editar ingresso</button>
       </div>
     </div>`;
   }).join('');
@@ -1031,8 +1086,9 @@ function renderAll(){
 // ---------- CASA: cadastro e controle de pagamentos ----------
 function nextCasaNumber(cat){
   const prefix = { solteiro:'HSOL', casal:'HCAS', solteira:'HSOA' }[cat];
-  const count = casaRecords.filter(r => r.cat === cat).length + 1;
-  return prefix + '-' + String(count).padStart(4,'0');
+  const pre = prefix + '-';
+  const max = casaRecords.reduce((m,r)=> String(r.id).startsWith(pre) ? Math.max(m, parseInt(String(r.id).slice(pre.length),10) || 0) : m, 0);
+  return pre + String(max + 1).padStart(4,'0');
 }
 
 function renderSegsCasa(){
@@ -1570,6 +1626,93 @@ function baixarBackup(){
 }
 
 window.addIndicacao = addIndicacao;
+
+// ---------- editar ingresso ----------
+let editandoTicketId = null;
+
+function abrirEdicaoTicket(id){
+  const t = tickets.find(x=>x.id===id);
+  if(!t) return;
+  editandoTicketId = id;
+  document.getElementById('etCodigo').textContent = t.id;
+  document.getElementById('etNome').value = t.nome;
+  document.getElementById('etWhats').value = t.whatsapp || '';
+  document.getElementById('etPagamento').value = t.pagamento || '';
+  document.getElementById('etCortesia').checked = !!t.cortesia;
+  document.querySelectorAll('#etCatSeg button').forEach(b=>b.classList.toggle('on', b.dataset.cat===t.cat));
+  document.querySelectorAll('#etLoteSeg button').forEach(b=>b.classList.toggle('on', b.dataset.lote===t.lote));
+  document.getElementById('etDesmarcar').style.display = t.checkedIn ? 'block' : 'none';
+  atualizarPrecoEdicaoTicket();
+  document.getElementById('modalEditarTicket').classList.remove('hidden');
+}
+window.abrirEdicaoTicket = abrirEdicaoTicket;
+
+function atualizarPrecoEdicaoTicket(){
+  const cat = document.querySelector('#etCatSeg button.on')?.dataset.cat || 'solteiro';
+  const lote = document.querySelector('#etLoteSeg button.on')?.dataset.lote || 'lote1';
+  const cort = document.getElementById('etCortesia').checked;
+  const el = document.getElementById('etPreco');
+  el.textContent = cort ? 'Cortesia' : fmtBRL(config.precos[cat][lote]);
+  el.style.color = cort ? '#6fcf7f' : '';
+}
+function fecharEdicaoTicket(){
+  document.getElementById('modalEditarTicket').classList.add('hidden');
+  editandoTicketId = null;
+}
+
+document.getElementById('etCatSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#etCatSeg button').forEach(x=>x.classList.toggle('on', x===b));
+  atualizarPrecoEdicaoTicket();
+});
+document.getElementById('etLoteSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#etLoteSeg button').forEach(x=>x.classList.toggle('on', x===b));
+  atualizarPrecoEdicaoTicket();
+});
+document.getElementById('etCortesia').addEventListener('change', atualizarPrecoEdicaoTicket);
+document.getElementById('fecharEditarTicket').addEventListener('click', fecharEdicaoTicket);
+
+document.getElementById('etSalvar').addEventListener('click', async ()=>{
+  const t = tickets.find(x=>x.id===editandoTicketId);
+  if(!t) return;
+  const nome = document.getElementById('etNome').value.trim();
+  if(!nome){ alert('Digite o nome.'); return; }
+  const cat = document.querySelector('#etCatSeg button.on')?.dataset.cat || t.cat;
+  const lote = document.querySelector('#etLoteSeg button.on')?.dataset.lote || t.lote;
+  const cortesia = document.getElementById('etCortesia').checked;
+  // ingressos antigos (sem controle de parcelas) valiam como pagos pelo preço antigo: fixa isso antes de mudar o preço
+  if(t.pagamentos === undefined) t.pagamentos = (t.preco || 0) > 0 ? [{ valor:t.preco, data:t.dataVenda || new Date().toISOString() }] : [];
+  t.nome = nome;
+  t.cat = cat;
+  t.lote = lote;
+  t.cortesia = cortesia;
+  t.preco = cortesia ? 0 : config.precos[cat][lote];
+  t.pagamento = document.getElementById('etPagamento').value;
+  t.whatsapp = document.getElementById('etWhats').value.trim();
+  await saveTickets();
+  renderAll();
+  fecharEdicaoTicket();
+});
+document.getElementById('etDesmarcar').addEventListener('click', async ()=>{
+  const t = tickets.find(x=>x.id===editandoTicketId);
+  if(!t) return;
+  if(!confirm(`Desmarcar a entrada de ${t.nome}? Ele(a) poderá entrar de novo com o QR Code.`)) return;
+  t.checkedIn = false;
+  t.checkinTime = null;
+  await saveTickets();
+  renderAll();
+  fecharEdicaoTicket();
+});
+document.getElementById('etExcluir').addEventListener('click', async ()=>{
+  const t = tickets.find(x=>x.id===editandoTicketId);
+  if(!t) return;
+  if(!confirm(`Excluir o ingresso de ${t.nome} (${t.id})? O QR Code dele deixa de funcionar. Isso não pode ser desfeito.`)) return;
+  tickets = tickets.filter(x=>x.id!==editandoTicketId);
+  await saveTickets();
+  renderAll();
+  fecharEdicaoTicket();
+});
 
 // ---------- check-in ----------
 function processarCodigo(codigo){
